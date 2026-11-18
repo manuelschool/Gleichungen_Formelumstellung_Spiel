@@ -1,0 +1,2466 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Waagenwerkstatt – Gleichungen lösen</title>
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root{
+  --ink:#12261f;
+  --cream:#f7f2df;
+  --board:#14503a;
+  --board2:#0a3225;
+  --gold:#ffc857;
+  --gold-d:#c8942a;
+  --red:#e05b47;
+  --green:#3fbf7f;
+  --blue:#5cc6d6;
+  --panel:#fffaf0;
+  --line:#d9c79a;
+  --wood:#8b5b2b;
+  --wood-l:#c99a5e;
+  --focus:#ff9f1c;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:ui-rounded,"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  color:var(--ink);
+  background:radial-gradient(circle at 20% -10%,#f2ebd6,#e2d8bd 55%,#d6c9a8);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
+:focus-visible{outline:4px solid var(--focus);outline-offset:3px;border-radius:10px}
+h1,h2,h3{margin:0}
+.hidden{display:none !important}
+
+/* ============================================================
+   TOP BAR
+   ============================================================ */
+.topbar{
+  position:sticky;top:0;z-index:40;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:10px 18px;
+  background:linear-gradient(#fffbf2,#f6ecd4);
+  border-bottom:4px solid var(--wood-l);
+  box-shadow:0 6px 20px #0000001f;
+}
+.brand{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.logo{font-size:30px;line-height:1;filter:drop-shadow(0 2px 2px #0003)}
+.app-title{font-size:clamp(17px,2.2vw,26px);font-weight:900;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hud{display:flex;gap:8px;flex-wrap:wrap}
+.stat{
+  background:#fff;border:2px solid var(--line);border-radius:999px;
+  padding:6px 13px;font-weight:800;font-size:15px;white-space:nowrap;
+  box-shadow:0 2px 0 #00000010;
+}
+.topbtns{display:flex;gap:8px}
+.icon-btn{
+  min-width:52px;min-height:52px;border-radius:14px;border:2px solid var(--line);
+  background:#fff;font-size:22px;display:grid;place-items:center;
+  box-shadow:0 3px 0 #c9b586;transition:transform .12s,background .15s;
+}
+.icon-btn:active{transform:translateY(3px);box-shadow:0 0 0 #c9b586}
+.icon-btn[aria-pressed="true"]{background:#ffe3a1;border-color:var(--gold-d)}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+.layout{
+  display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:16px;
+  padding:16px;max-width:1560px;margin:0 auto;align-items:start;
+}
+@media (max-width:1060px){ .layout{grid-template-columns:1fr;padding:10px} }
+body.focus-mode .side{display:none}
+body.focus-mode .layout{grid-template-columns:1fr;max-width:1200px}
+
+/* ============================================================
+   BOARD (chalkboard)
+   ============================================================ */
+.board{
+  position:relative;
+  background:radial-gradient(circle at 50% 0%,#1c6449,var(--board2) 72%);
+  border:12px solid var(--wood);
+  border-radius:20px;
+  box-shadow:inset 0 0 60px #00160faa,0 20px 44px #00000033;
+  color:var(--cream);
+  padding:16px 18px 20px;
+  min-height:660px;
+  overflow:hidden;
+}
+.board::after{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.055;
+  background-image:repeating-linear-gradient(2deg,transparent 0 24px,#fff 25px 26px);
+}
+.board > *{position:relative;z-index:1}
+
+.board-head{text-align:center}
+.leveltag{
+  display:inline-block;background:var(--gold);color:#3c2c0a;border-radius:10px;
+  padding:5px 14px;font-weight:900;font-size:14px;letter-spacing:.06em;
+  box-shadow:0 3px 0 var(--gold-d);
+}
+.headline{font-size:clamp(20px,3vw,32px);margin:10px 0 2px;font-weight:900;color:#fff8e2}
+.story{opacity:.88;font-size:clamp(14px,1.6vw,17px);margin:0 0 6px}
+
+/* ============================================================
+   SCALE
+   ============================================================ */
+.scale-stage{position:relative;height:330px;margin:6px auto 0;max-width:820px}
+@media (max-width:620px){ .scale-stage{height:300px} }
+
+.beam-group{
+  position:absolute;left:4%;right:4%;top:48px;height:0;
+  transform-origin:50% 8px;
+  transition:transform .45s cubic-bezier(.34,1.56,.64,1);
+}
+.beam{
+  position:absolute;left:0;right:0;top:-9px;height:18px;border-radius:10px;
+  background:linear-gradient(#e9c98a,#c69a53 60%,#a97c3a);
+  border:3px solid #6b4a1e;
+  box-shadow:0 4px 10px #00000055,inset 0 2px 3px #fff6;
+}
+.beam::after{
+  content:"";position:absolute;left:50%;top:50%;width:22px;height:22px;
+  transform:translate(-50%,-50%);border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#ffeab5,#c08e3c);
+  border:3px solid #6b4a1e;
+}
+.hanger{
+  position:absolute;top:9px;width:38%;height:152px;
+  border-left:4px solid #cdb786;border-right:4px solid #cdb786;
+  border-bottom:9px solid #d3ab68;
+  border-radius:0 0 26px 26px;
+  display:flex;align-items:flex-end;justify-content:center;
+  padding:0 8px 12px;
+  transition:box-shadow .3s;
+}
+.hanger.left{left:0}
+.hanger.right{right:0}
+.hanger::before{
+  content:"";position:absolute;left:50%;top:-9px;transform:translateX(-50%);
+  width:10px;height:10px;border-radius:50%;background:#e8c887;border:2px solid #6b4a1e;
+}
+.hanger.flash{animation:panflash .45s ease}
+@keyframes panflash{
+  0%,100%{box-shadow:none}
+  40%{box-shadow:0 0 0 8px #ffd97a66,0 0 26px #ffd97a99}
+}
+
+.items{
+  display:flex;flex-wrap:wrap;justify-content:center;align-content:flex-end;
+  gap:4px;width:100%;max-height:132px;overflow:visible;
+}
+.empty-pan{opacity:.4;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+
+.fruit{
+  background:none;border:0;padding:1px;line-height:1;
+  font-size:clamp(24px,3vw,36px);
+  filter:drop-shadow(1px 3px 2px #00000077);
+  transition:transform .16s ease,filter .16s ease;
+  border-radius:12px;
+}
+.fruit:hover{transform:translateY(-4px) scale(1.08)}
+.fruit.hl{animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{
+  0%,100%{filter:drop-shadow(0 0 0 #ffd97a) drop-shadow(1px 3px 2px #0007)}
+  50%{filter:drop-shadow(0 0 10px #ffd97a) drop-shadow(1px 3px 2px #0007)}
+}
+.fruit.fly{animation:flyout .35s ease forwards}
+@keyframes flyout{to{transform:translateY(-90px) scale(.35) rotate(28deg);opacity:0}}
+.fruit.drop{animation:dropin .38s cubic-bezier(.34,1.56,.64,1)}
+@keyframes dropin{from{transform:translateY(-46px) scale(.5);opacity:0}to{transform:none;opacity:1}}
+
+.weight{
+  min-width:54px;min-height:44px;padding:4px 9px;
+  background:linear-gradient(#e4ebee,#a3b0b4);
+  border:3px solid #eff5f6;border-bottom-color:#6d7a7e;border-radius:9px;
+  color:#0e2429;font-weight:900;font-size:14px;letter-spacing:.01em;
+  box-shadow:inset 0 -5px 7px #5b676a55,0 3px 4px #00000055;
+  transition:transform .16s ease;
+}
+.weight:hover{transform:translateY(-3px)}
+.weight.debt{
+  background:linear-gradient(#ffd9d1,#e08c7c);
+  border-color:#ffe6e0;border-bottom-color:#a3574a;color:#5a1a10;
+}
+.weight.hl{animation:pulse 1.1s ease-in-out infinite}
+.weight.fly{animation:flyout .35s ease forwards}
+.weight.drop{animation:dropin .38s cubic-bezier(.34,1.56,.64,1)}
+
+.pivot{
+  position:absolute;left:50%;top:52px;transform:translateX(-50%);
+  width:0;height:0;border-left:34px solid transparent;border-right:34px solid transparent;
+  border-bottom:132px solid #b6803d;
+  filter:drop-shadow(0 4px 6px #00000055);
+}
+.pivot::after{
+  content:"";position:absolute;left:-15px;top:-42px;width:30px;height:30px;
+  border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffeab5,#c08e3c);
+  border:4px solid #6b4a1e;
+}
+.scale-base{
+  position:absolute;left:50%;bottom:44px;transform:translateX(-50%);
+  width:200px;height:20px;border-radius:10px;
+  background:linear-gradient(#c69a53,#8b5b2b);
+  border:3px solid #6b4a1e;box-shadow:0 8px 18px #00000066;
+}
+@media (max-width:620px){
+  .scale-base{width:140px;bottom:34px}
+  .hanger{height:132px}
+  .scale-stage{height:290px}
+}
+
+/* ============================================================
+   FORMULA STAGE (Level 4)
+   ============================================================ */
+.formula-stage{
+  max-width:720px;margin:10px auto 4px;text-align:center;
+  background:#0d3a2b;border:3px dashed #ffffff33;border-radius:18px;padding:18px 16px;
+}
+.formula-big{
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:clamp(26px,4.4vw,46px);font-weight:700;color:#fff3bf;
+  letter-spacing:.02em;text-shadow:0 3px 0 #00000055;
+}
+.formula-target{margin-top:6px;font-size:clamp(15px,1.8vw,18px);opacity:.9}
+.formula-target b{color:var(--gold)}
+.options{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+@media (max-width:560px){ .options{grid-template-columns:1fr} }
+.option{
+  min-height:56px;padding:10px 12px;border-radius:12px;
+  border:3px solid #ffffff33;background:#ffffff12;color:#f7f2df;
+  font-family:Georgia,serif;font-size:clamp(17px,2.2vw,22px);font-weight:700;
+  transition:background .16s,transform .12s,border-color .16s;
+}
+.option:hover{background:#ffffff22;border-color:#ffffff66;transform:translateY(-2px)}
+.option.correct{background:#1f7a4e;border-color:#7ef2b0}
+.option.wrong{background:#7a2e24;border-color:#ff9a8c;opacity:.75}
+.option:disabled{cursor:default;transform:none}
+.verify{margin-top:14px;font-size:clamp(14px,1.7vw,17px);opacity:.95}
+
+/* ============================================================
+   EQUATION + NOTES
+   ============================================================ */
+.equation{
+  text-align:center;font-family:Georgia,"Times New Roman",serif;
+  font-size:clamp(26px,4vw,46px);font-weight:700;color:#fff3bf;
+  margin:8px 0 2px;letter-spacing:.01em;
+  text-shadow:0 3px 0 #00000055;
+  transition:transform .2s;
+}
+.equation.bump{animation:bump .35s ease}
+@keyframes bump{0%,100%{transform:scale(1)}40%{transform:scale(1.07)}}
+.action-note{
+  text-align:center;min-height:24px;font-size:clamp(13px,1.6vw,16px);
+  color:#d8f0c9;font-weight:700;margin-bottom:8px;
+}
+
+/* ============================================================
+   OPERATION BAR / PREVIEW
+   ============================================================ */
+.opbar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:10px 0}
+.opbtn{
+  min-height:56px;min-width:56px;padding:6px 14px;border-radius:14px;
+  border:3px solid #ffffff2e;background:#ffffff14;color:#f7f2df;
+  font-weight:800;font-size:16px;display:flex;align-items:center;gap:7px;
+  transition:background .15s,transform .12s,border-color .15s;
+}
+.opbtn:hover{background:#ffffff26;border-color:#ffffff5c}
+.opbtn:active{transform:translateY(2px)}
+.opbtn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.opbtn .em{font-size:22px}
+
+.preview{
+  display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;
+  background:#ffc85722;border:3px solid #ffc85788;border-radius:16px;
+  padding:10px 14px;margin:8px auto;max-width:660px;
+}
+.preview .ptext{font-weight:800;font-size:15px}
+.preview .ptext b{color:#ffe9a8;font-family:Georgia,serif;font-size:19px}
+.btn-confirm,.btn-cancel{
+  min-height:52px;padding:8px 20px;border-radius:12px;font-weight:900;font-size:17px;border:0;
+}
+.btn-confirm{background:var(--green);color:#04231a;box-shadow:0 4px 0 #237a4d}
+.btn-confirm:active{transform:translateY(3px);box-shadow:0 1px 0 #237a4d}
+.btn-cancel{background:#ffffff22;color:#f7f2df;border:3px solid #ffffff44}
+.btn-confirm:disabled{opacity:.45;box-shadow:none;transform:none;cursor:not-allowed}
+
+/* ============================================================
+   ANSWER ZONE
+   ============================================================ */
+.answerzone{
+  display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;
+  margin:14px auto 6px;max-width:600px;
+}
+.answerlabel{font-family:Georgia,serif;font-size:clamp(22px,3vw,30px);font-weight:700;color:#fff3bf}
+.answerinput{
+  width:170px;min-height:56px;text-align:center;
+  font-size:clamp(22px,3vw,30px);font-weight:900;
+  border-radius:12px;border:4px solid #d7bc79;background:#fffdf4;color:#12352a;
+  padding:6px 10px;
+}
+.answerinput:disabled{background:#e6e1cf;color:#8b8574;border-color:#a9996d}
+.unit{font-size:clamp(18px,2.2vw,24px);font-weight:900;color:#fff3bf;min-width:34px}
+.btn-check{
+  min-height:56px;padding:8px 26px;border-radius:14px;border:0;
+  background:var(--gold);color:#3b2b08;font-weight:900;font-size:19px;
+  box-shadow:0 5px 0 var(--gold-d);transition:transform .12s;
+}
+.btn-check:active{transform:translateY(4px);box-shadow:0 1px 0 var(--gold-d)}
+.btn-check:disabled{opacity:.45;box-shadow:none;transform:none;cursor:not-allowed}
+
+.feedback{
+  min-height:48px;text-align:center;font-weight:900;font-size:clamp(15px,1.9vw,19px);
+  padding:6px 10px;line-height:1.3;
+}
+.feedback.good{color:#baff93}
+.feedback.bad{color:#ffc3bb}
+.feedback.info{color:#ffe9a8}
+
+/* ============================================================
+   SIDE PANEL
+   ============================================================ */
+.side{display:flex;flex-direction:column;gap:14px}
+.card{
+  background:var(--panel);border:3px solid var(--line);border-radius:16px;
+  padding:14px;box-shadow:0 10px 24px #00000018;
+}
+.card h3{
+  font-size:16px;margin-bottom:10px;letter-spacing:.05em;text-transform:uppercase;
+  color:#6d5a2e;
+}
+.opchips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.chip{
+  min-height:56px;border-radius:13px;border:3px solid var(--line);background:#fff;
+  font-size:26px;font-weight:900;box-shadow:0 3px 0 #c9b586;transition:all .13s;
+}
+.chip:active{transform:translateY(3px);box-shadow:0 0 0 #c9b586}
+.chip.active{background:#14503a;color:#fff;border-color:#0a3225;box-shadow:0 3px 0 #07241a}
+
+.num-display{
+  text-align:center;font-family:Georgia,serif;font-size:26px;font-weight:700;
+  background:#f2e9d3;border-radius:10px;padding:8px;margin-bottom:10px;
+  min-height:48px;color:#3d3018;
+}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.key{
+  min-height:56px;border-radius:12px;border:2px solid var(--line);background:#fff;
+  font-size:22px;font-weight:900;box-shadow:0 3px 0 #c9b586;transition:all .12s;
+}
+.key:active{transform:translateY(3px);box-shadow:0 0 0 #c9b586}
+.key.wide{grid-column:span 2}
+.key.danger{background:#ffe2dd}
+
+.history-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:230px;overflow:auto}
+.history-list li button{
+  width:100%;text-align:left;background:#f5eeda;border:2px solid #e0d2ab;border-radius:10px;
+  padding:8px 10px;font-size:14px;display:flex;gap:8px;align-items:baseline;
+}
+.history-list li button:hover{background:#efe4c8}
+.history-list li.current button{background:#14503a;color:#fff;border-color:#0a3225}
+.history-list .hlabel{font-weight:900;font-size:12px;opacity:.75;white-space:nowrap}
+.history-list .heq{font-family:Georgia,serif;font-weight:700;font-size:16px}
+.equation i{font-style:italic;font-weight:500;padding:0 .05em}
+.calc{display:grid;grid-template-columns:max-content 1fr;max-height:320px;overflow:auto;padding:0 8px 0 14px;
+  background:linear-gradient(transparent 41px,#cfd9e8 41px,#cfd9e8 42px) 0 0/100% 42px local,#fffdf6;
+  border:2px solid var(--line);border-left:3px solid #d4505b;border-radius:10px;min-height:128px}
+.calc>div{height:42px;line-height:42px;font-family:Georgia,"Times New Roman",serif;font-size:21px;font-weight:700;white-space:nowrap;color:#2b2210}
+.calc .ceq i{font-style:italic;font-weight:500}
+.calc .ceq.cur{color:#14503a}
+.calc .ceq.fin::after{content:"  ✓";color:#1c8a52;font-family:system-ui,sans-serif}
+.calc .cop{border-left:2px solid #2b2210;margin-left:16px;padding-left:12px;color:#1f4fd8}
+.calc .cop.pv{color:#8a7a52;font-style:italic}
+.weight.fchip{display:inline-flex;align-items:center;gap:4px;cursor:default}
+.lvlrow{display:flex;gap:8px;flex-wrap:wrap}
+.lvlrow select{flex:1 1 150px;min-height:44px;border:3px solid var(--line);border-radius:12px;font:inherit;padding:0 8px;background:#fff;color:#2b2210}
+.lvlrow .action{flex:0 0 auto}
+.options .option{font-family:Georgia,"Times New Roman",serif;font-size:24px;font-weight:700}
+.fx-half,.fx-slash,.fx-drop{position:fixed;z-index:60;pointer-events:none;margin:0;line-height:1}
+.fx-slash{height:4px;border-radius:4px;background:linear-gradient(90deg,transparent,#fff,transparent);box-shadow:0 0 10px 2px #fff9;transform-origin:left center;z-index:61}
+.fx-drop{border-radius:50%}
+.fruit.drop-in{animation:dropIn .55s cubic-bezier(.3,1.6,.5,1)}
+@keyframes dropIn{0%{transform:translateY(-80px) scale(.4);opacity:0}100%{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.fruit.drop-in{animation:none}}
+.inspect-note{margin-top:8px;font-size:13px;color:#6a5835;min-height:18px}
+
+.hintbox{background:#f3ead3;border-radius:10px;padding:11px;line-height:1.4;font-size:14px;min-height:74px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.action{
+  min-height:52px;padding:8px;border-radius:11px;border:2px solid #a4864c;background:#fff;
+  font-weight:800;font-size:14px;
+}
+.action:active{transform:translateY(2px)}
+.action:disabled{opacity:.45;cursor:not-allowed}
+
+.progress{height:14px;background:#dbceb0;border-radius:20px;overflow:hidden}
+.bar{height:100%;width:0;background:linear-gradient(90deg,#ffb329,#65cf8c);transition:width .4s}
+.small{font-size:13px;line-height:1.4;color:#6a5835;margin:8px 0 0}
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.statgrid div{background:#f3ead3;border-radius:9px;padding:7px;text-align:center;font-size:13px;font-weight:700}
+.statgrid b{display:block;font-size:19px;color:#14503a}
+
+/* ============================================================
+   OVERLAY / MODAL
+   ============================================================ */
+.overlay{
+  position:fixed;inset:0;background:#04160fcc;backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;padding:18px;z-index:80;
+  overflow:auto;
+}
+.modal{
+  background:#fff9e8;border:7px solid #b37a36;border-radius:22px;
+  padding:24px;max-width:620px;width:100%;max-height:92vh;overflow:auto;
+  box-shadow:0 30px 70px #00000066;
+}
+.modal h2{font-size:26px;margin-bottom:12px}
+.modal.win{text-align:center}
+.bigfruit{font-size:66px;line-height:1}
+.modal fieldset{border:2px solid var(--line);border-radius:12px;padding:12px;margin:12px 0}
+.modal legend{font-weight:900;font-size:14px;padding:0 6px;color:#6d5a2e}
+.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+.trow{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.modal label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:800;color:#5c4a24}
+.modal input[type=number],.modal select{
+  min-height:48px;border-radius:10px;border:2px solid var(--line);padding:6px 10px;
+  font-size:16px;font-weight:700;background:#fff;color:#22301f;width:100%;
+}
+.modal input[type=number]{width:92px}
+.tpreview{font-size:14px;font-weight:800;color:#1d5c40;margin:8px 0;min-height:20px}
+.tpreview.err{color:#b3341f}
+.btn{
+  min-height:52px;padding:8px 18px;border-radius:12px;border:2px solid #a4864c;
+  background:#fff;font-weight:900;font-size:15px;
+}
+.btn.primary{background:#14503a;color:#fff;border-color:#0a3225}
+.btn.danger{background:#ffe2dd;border-color:#c9705c;color:#7a2e24}
+.switch{flex-direction:row !important;align-items:center;gap:10px;font-size:15px;margin:6px 0;color:#3d3018}
+.switch input{width:24px;height:24px;accent-color:#14503a}
+.tfoot{display:flex;justify-content:space-between;gap:10px;margin-top:14px;flex-wrap:wrap}
+.timer-display{font-family:Georgia,serif;font-size:24px;font-weight:700;color:#14503a}
+.timer-display.low{color:#b3341f}
+
+/* ============================================================
+   CONFETTI
+   ============================================================ */
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:120;overflow:hidden}
+.confetti i{
+  position:absolute;top:-24px;width:10px;height:15px;border-radius:2px;
+  animation-name:fall;animation-timing-function:linear;animation-fill-mode:forwards;
+}
+@keyframes fall{to{top:106%;transform:rotate(760deg)}}
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
+}
+body.no-anim *{animation:none !important;transition:none !important}
+
+/* ============================================================
+   HIGH CONTRAST
+   ============================================================ */
+body.high-contrast{
+  --panel:#ffffff;--line:#000000;--board:#00341f;--cream:#ffffff;
+}
+body.high-contrast .card{border-color:#000}
+body.high-contrast .opbtn{border-color:#fff}
+body.high-contrast .stat{border-color:#000}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- ========== TOP BAR ========== -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">⚖️</span>
+      <h1 class="app-title">Waagenwerkstatt</h1>
+    </div>
+    <div class="hud">
+      <span class="stat" title="Sterne">⭐ <b id="hudStars">0</b></span>
+      <span class="stat" title="Serie richtiger Lösungen">🔥 <b id="hudStreak">0</b></span>
+      <span class="stat" title="Aufgabe">📋 <b id="hudCount">1</b><span id="hudTotal" hidden></span></span>
+    </div>
+    <div class="topbtns">
+      <button class="icon-btn" id="btnMute" aria-pressed="false" title="Ton ein- oder ausschalten" aria-label="Ton umschalten">🔊</button>
+      <button class="icon-btn" id="btnFocus" title="Fokus-Modus (Seitenleiste ausblenden)" aria-label="Fokus-Modus">🖥️</button>
+      <button class="icon-btn" id="btnFullscreen" title="Vollbild" aria-label="Vollbild">⛶</button>
+      <button class="icon-btn" id="btnTeacher" title="Lehrkraft-Modus" aria-label="Lehrkraft-Modus">🎓</button>
+    </div>
+  </header>
+
+  <!-- ========== MAIN ========== -->
+  <main class="layout">
+
+    <!-- ---------- BOARD ---------- -->
+    <section class="board" id="board" aria-label="Waage und Aufgabe">
+
+      <div class="board-head">
+        <span class="leveltag" id="levelTag">Stufe 1</span>
+        <h2 class="headline" id="headline">Wie schwer ist ein Apfel?</h2>
+        <p class="story" id="story">Die Waage ist im Gleichgewicht.</p>
+      </div>
+
+      <!-- ---- SCALE (levels 1-3) ---- -->
+      <div class="scale-stage" id="scaleStage">
+        <div class="beam-group" id="beamGroup">
+          <div class="beam"></div>
+          <div class="hanger left" id="hangerL">
+            <div class="items" id="itemsL" role="group" aria-label="Linke Waagschale"></div>
+          </div>
+          <div class="hanger right" id="hangerR">
+            <div class="items" id="itemsR" role="group" aria-label="Rechte Waagschale"></div>
+          </div>
+        </div>
+        <div class="pivot"></div>
+        <div class="scale-base"></div>
+      </div>
+
+      <!-- ---- FORMULA STAGE (level 4) ---- -->
+      <div class="formula-stage hidden" id="formulaStage">
+        <div class="formula-big" id="formulaBig">F = F₁ + F₂</div>
+        <div class="formula-target" id="formulaTarget">Stelle nach <b>F₁</b> um</div>
+        <div class="options" id="formulaOptions"></div>
+        <div class="verify hidden" id="verifyBox">
+          <p id="verifyText"></p>
+        </div>
+      </div>
+
+      <!-- ---- EQUATION ---- -->
+      <div class="equation" id="equation" aria-live="off">3x = x + 200</div>
+      <div class="action-note" id="actionNote"></div>
+
+      <!-- ---- OPERATIONS ---- -->
+      <div class="opbar" id="opbar">
+        <button class="opbtn" data-op="removeFruit" title="Ein Objekt auf beiden Seiten entfernen">
+          <span class="em" aria-hidden="true">➖</span><span id="lblRemoveFruit">🍎 entfernen</span>
+        </button>
+        <button class="opbtn" data-op="addFruit" title="Ein Objekt auf beiden Seiten hinzufügen">
+          <span class="em" aria-hidden="true">➕</span><span id="lblAddFruit">🍎 hinzufügen</span>
+        </button>
+        <button class="opbtn" data-op="swap" title="Seiten tauschen">
+          <span class="em" aria-hidden="true">⇄</span>Seiten tauschen
+        </button>
+        <button class="opbtn" data-op="undo" title="Letzten Schritt rückgängig machen">
+          <span class="em" aria-hidden="true">↶</span>Rückgängig
+        </button>
+        <button class="opbtn" data-op="reset" title="Aufgabe neu starten">
+          <span class="em" aria-hidden="true">⟲</span>Neu
+        </button>
+      </div>
+
+      <!-- ---- PREVIEW ---- -->
+      <div class="preview hidden" id="preview">
+        <span class="ptext" id="previewText"></span>
+        <button class="btn-confirm" id="btnConfirm">✓ Anwenden</button>
+        <button class="btn-cancel" id="btnCancel">✗ Abbrechen</button>
+      </div>
+
+      <!-- ---- ANSWER ---- -->
+      <div class="answerzone">
+        <label class="answerlabel" id="answerLabel" for="answerInput">x =</label>
+        <input id="answerInput" class="answerinput" inputmode="text" autocomplete="off"
+               aria-label="Lösung eingeben" placeholder="erst isolieren" disabled>
+        <span class="unit" id="answerUnit">g</span>
+        <button class="btn-check" id="btnCheck" disabled>Prüfen</button>
+      </div>
+
+      <!-- ---- FEEDBACK ---- -->
+      <div class="feedback" id="feedback" role="status" aria-live="polite"></div>
+    </section>
+
+    <!-- ---------- SIDE PANEL ---------- -->
+    <aside class="side">
+
+      <section class="card" aria-labelledby="histTitle">
+        <h3 id="histTitle">Rechenweg</h3>
+        <div class="calc" id="historyList" aria-live="polite"></div>
+        <div class="inspect-note" id="inspectNote"></div>
+      </section>
+
+      <section class="card" aria-labelledby="lvlTitle">
+        <h3 id="lvlTitle">Aufgaben</h3>
+        <div class="lvlrow">
+          <select id="lvlSel" aria-label="Stufe wählen">
+            <option value="0">Gemischt (wird schwerer)</option>
+            <option value="1">Stufe 1 – Objekte entfernen</option>
+            <option value="2">Stufe 2 – Zwei Schritte</option>
+            <option value="3">Stufe 3 – Negative Werte</option>
+            <option value="4">Stufe 4 – Formeln umstellen</option>
+            <option value="5">Stufe 5 – Profi</option>
+          </select>
+          <button class="action" id="btnNewTask">Neue Aufgabe ↻</button>
+        </div>
+        <p class="small">Alle Aufgaben werden laufend neu erzeugt – es gibt kein Ende.</p>
+      </section>
+
+      <section class="card" aria-labelledby="toolsTitle">
+        <h3 id="toolsTitle">Rechenwerkzeuge</h3>
+        <div class="opchips" id="opchips">
+          <button class="chip" data-numop="sub" title="Subtrahiere eine Zahl auf beiden Seiten">−</button>
+          <button class="chip" data-numop="add" title="Addiere eine Zahl auf beiden Seiten">+</button>
+          <button class="chip" data-numop="div" title="Teile beide Seiten durch eine Zahl">÷</button>
+          <button class="chip" data-numop="mul" title="Multipliziere beide Seiten mit einer Zahl">×</button>
+        </div>
+        <div class="num-display" id="numDisplay" aria-live="polite">—</div>
+        <div class="numpad" id="numpad">
+          <button class="key" data-key="1">1</button>
+          <button class="key" data-key="2">2</button>
+          <button class="key" data-key="3">3</button>
+          <button class="key" data-key="4">4</button>
+          <button class="key" data-key="5">5</button>
+          <button class="key" data-key="6">6</button>
+          <button class="key" data-key="7">7</button>
+          <button class="key" data-key="8">8</button>
+          <button class="key" data-key="9">9</button>
+          <button class="key danger" data-key="back" aria-label="Ziffer löschen">⌫</button>
+          <button class="key" data-key="0">0</button>
+          <button class="key danger" data-key="clear" aria-label="Alles löschen">C</button>
+          <button class="key" data-key="x" aria-label="x-Term"><i>x</i></button>
+          <button class="key wide" data-key="apply">✓ Anwenden</button>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="hintTitle">
+        <h3 id="hintTitle">Hilfe</h3>
+        <div class="hintbox" id="hintText">Tippe auf „Hinweis“, wenn du nicht weiterkommst.</div>
+        <div class="actions">
+          <button class="action" id="btnHint">💡 Hinweis</button>
+          <button class="action" id="btnRead">🔊 Vorlesen</button>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="progTitle">
+        <h3 id="progTitle">Fortschritt</h3>
+        <div class="progress"><div class="bar" id="bar"></div></div>
+        <div class="statgrid">
+          <div>Gelöst<b id="statSolved">0</b></div>
+          <div>Ohne Hilfe<b id="statNoHelp">0</b></div>
+          <div>Fehler<b id="statErrors">0</b></div>
+          <div>Bestserie<b id="statBest">0</b></div>
+        </div>
+        <p class="small">Nach drei sicheren Lösungen in Folge wird es schwerer.</p>
+        <button class="action" id="btnResetSession" style="width:100%;margin-top:10px">Sitzung neu starten</button>
+      </section>
+    </aside>
+  </main>
+</div>
+
+<!-- ========== WIN OVERLAY ========== -->
+<div class="overlay hidden" id="winOverlay" role="dialog" aria-modal="true" aria-labelledby="winTitle">
+  <div class="modal win">
+    <div class="bigfruit" aria-hidden="true">🏆🍎</div>
+    <h2 id="winTitle">Werkstatt geschafft!</h2>
+    <p id="winResult"></p>
+    <div class="tfoot" style="justify-content:center">
+      <button class="btn primary" id="btnAgain">Noch einmal</button>
+      <button class="btn" id="btnCloseWin">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== TEACHER OVERLAY ========== -->
+<div class="overlay hidden" id="teacherOverlay" role="dialog" aria-modal="true" aria-labelledby="teacherTitle">
+  <div class="modal">
+    <h2 id="teacherTitle">🎓 Lehrkraft-Modus</h2>
+
+    <fieldset>
+      <legend>Aufgabe auswählen</legend>
+      <div class="tgrid">
+        <label>Stufe
+          <select id="tLevel">
+            <option value="0">Alle Stufen</option>
+            <option value="1">Stufe 1 – Objekte entfernen</option>
+            <option value="2">Stufe 2 – Zwei Schritte</option>
+            <option value="3">Stufe 3 – Negative Werte</option>
+            <option value="4">Stufe 4 – Formeln</option>
+          </select>
+        </label>
+        <label>Aufgabe
+          <select id="tProblem"></select>
+        </label>
+      </div>
+      <button class="btn primary" id="tStartProblem" style="width:100%;margin-top:8px">Aufgabe starten</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Eigene Gleichung: a·x + b = c·x + d</legend>
+      <div class="trow">
+        <label>a<input id="tA" type="number" value="3" min="-20" max="20" step="1"></label>
+        <label>b<input id="tB" type="number" value="0" min="-999" max="999" step="5"></label>
+        <label>c<input id="tC" type="number" value="1" min="-20" max="20" step="1"></label>
+        <label>d<input id="tD" type="number" value="200" min="-999" max="999" step="5"></label>
+        <label>Symbol
+          <select id="tFruit">
+            <option value="apple">🍎 Apfel</option>
+            <option value="pear">🍐 Birne</option>
+            <option value="orange">🍊 Orange</option>
+            <option value="box">📦 Kiste</option>
+          </select>
+        </label>
+      </div>
+      <p class="tpreview" id="tPreview"></p>
+      <button class="btn primary" id="tStartCustom" style="width:100%">Eigene Aufgabe starten</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Einstellungen</legend>
+      <label class="switch"><input type="checkbox" id="tHints" checked> Hinweise erlauben</label>
+      <label class="switch"><input type="checkbox" id="tSound" checked> Ton</label>
+      <label class="switch"><input type="checkbox" id="tAnim" checked> Animationen</label>
+      <label class="switch"><input type="checkbox" id="tContrast"> Hoher Kontrast</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Klassen-Timer</legend>
+      <div class="trow">
+        <label>Minuten<input id="tTimer" type="number" value="5" min="1" max="60" step="1"></label>
+        <button class="btn" id="tTimerStart">Start</button>
+        <button class="btn" id="tTimerStop">Stop</button>
+        <span class="timer-display" id="tTimerDisplay">--:--</span>
+      </div>
+    </fieldset>
+
+    <div class="tfoot">
+      <button class="btn" id="tClose">Schließen</button>
+      <button class="btn danger" id="tResetAll">Gesamten Fortschritt zurücksetzen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================================================================
+   0. SELF-TEST HARNESS
+   ================================================================ */
+(function(){
+  const log = [];
+  window.__wwLog = log;
+  window.__wwTest = (name, cond) => { log.push({name, ok: !!cond}); if(!cond) console.warn('TEST FEHLGESCHLAGEN:', name); };
+})();
+
+/* ================================================================
+   1. UTILITIES & RATIONAL NUMBERS
+   ================================================================ */
+const $  = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+function gcd(a,b){ a=Math.abs(a); b=Math.abs(b); while(b){ const t=a%b; a=b; b=t; } return a||1; }
+
+/** Exakter Bruch – verhindert Float-Fehler bei Divisionen. */
+class Frac{
+  constructor(n,d=1){
+    if(d===0) throw new Error('Division durch 0');
+    if(!Number.isFinite(n) || !Number.isFinite(d)) throw new Error('Ungültige Zahl');
+    if(d<0){ n=-n; d=-d; }
+    const g = gcd(n,d);
+    this.n = n/g; this.d = d/g;
+  }
+  static of(v){ return v instanceof Frac ? v : new Frac(v,1); }
+  add(o){ o=Frac.of(o); return new Frac(this.n*o.d + o.n*this.d, this.d*o.d); }
+  sub(o){ o=Frac.of(o); return new Frac(this.n*o.d - o.n*this.d, this.d*o.d); }
+  mul(o){ o=Frac.of(o); return new Frac(this.n*o.n, this.d*o.d); }
+  div(o){ o=Frac.of(o); if(o.n===0) throw new Error('Division durch 0'); return new Frac(this.n*o.d, this.d*o.n); }
+  neg(){ return new Frac(-this.n, this.d); }
+  isZero(){ return this.n===0; }
+  isInt(){ return this.d===1; }
+  eq(o){ o=Frac.of(o); return this.n===o.n && this.d===o.d; }
+  gte(o){ o=Frac.of(o); return this.n*o.d >= o.n*this.d; }
+  gt(o){ o=Frac.of(o); return this.n*o.d > o.n*this.d; }
+  lt(o){ o=Frac.of(o); return this.n*o.d < o.n*this.d; }
+  val(){ return this.n/this.d; }
+  clone(){ return new Frac(this.n,this.d); }
+}
+
+const isOne    = f => f.n===1  && f.d===1;
+const isNegOne = f => f.n===-1 && f.d===1;
+const MINUS = '−';
+
+/** Zahl schön formatieren (deutsche Schreibweise, max. 3 Nachkommastellen). */
+function fmtNum(f){
+  f = Frac.of(f);
+  if(f.isInt()) return String(f.n);
+  let d = f.d, ok = true;
+  while(d%2===0) d/=2;
+  while(d%5===0) d/=5;
+  if(d!==1) return f.n + '/' + f.d;
+  let s = (f.n/f.d).toFixed(3).replace(/0+$/,'').replace(/\.$/,'');
+  return s.replace('.',',');
+}
+
+/** Eine Gleichungsseite als Text: a·x + b */
+function sideStr(a, b, v='x'){
+  const parts = [];
+  if(!a.isZero()){
+    if(isOne(a)) parts.push(v);
+    else if(isNegOne(a)) parts.push(MINUS + v);
+    else parts.push(fmtNum(a) + v);
+  }
+  if(!b.isZero()){
+    const neg = b.lt(0);
+    const abs = neg ? b.neg() : b;
+    if(parts.length===0) parts.push((neg?MINUS:'') + fmtNum(abs));
+    else parts.push((neg?MINUS:'+') + ' ' + fmtNum(abs));
+  }
+  return parts.length ? parts.join(' ') : '0';
+}
+
+/* ================================================================
+   2. FRUITS & PROBLEM DECK
+   ================================================================ */
+const FRUITS = {
+  apple : { emoji:'🍎', name:'Apfel',  plural:'Äpfel'   },
+  pear  : { emoji:'🍐', name:'Birne',  plural:'Birnen'  },
+  orange: { emoji:'🍊', name:'Orange', plural:'Orangen' },
+  box   : { emoji:'📦', name:'Kiste',  plural:'Kisten'  }
+};
+
+/**
+ * Aufgaben. a·x + b = c·x + d  (ganze Zahlen)
+ * Stufe 4 nutzt ein eigenes Format (Formel-Umstellung).
+ */
+const PROBLEMS = [
+  /* ---- Stufe 1: Objekte auf beiden Seiten entfernen ---- */
+  {id:'L1-1', level:1, type:'fruit', fruit:'apple',  a:3, b:0,   c:1, d:200},
+  {id:'L1-2', level:1, type:'fruit', fruit:'pear',   a:2, b:50,  c:0, d:250},
+  {id:'L1-3', level:1, type:'fruit', fruit:'orange', a:4, b:0,   c:2, d:160},
+  {id:'L1-4', level:1, type:'fruit', fruit:'apple',  a:5, b:0,   c:2, d:90 },
+  {id:'L1-5', level:1, type:'fruit', fruit:'pear',   a:3, b:0,   c:1, d:120},
+
+  /* ---- Stufe 2: Zwei Schritte ---- */
+  {id:'L2-1', level:2, type:'fruit', fruit:'apple',  a:5, b:50,  c:2, d:350},
+  {id:'L2-2', level:2, type:'fruit', fruit:'pear',   a:3, b:120, c:1, d:280},
+  {id:'L2-3', level:2, type:'fruit', fruit:'orange', a:2, b:90,  c:0, d:310},
+  {id:'L2-4', level:2, type:'fruit', fruit:'apple',  a:4, b:60,  c:1, d:240},
+  {id:'L2-5', level:2, type:'fruit', fruit:'orange', a:6, b:30,  c:2, d:230},
+
+  /* ---- Stufe 3: Negative Werte / Addition ---- */
+  {id:'L3-1', level:3, type:'fruit', fruit:'pear',   a:2, b:-40,  c:0, d:160},
+  {id:'L3-2', level:3, type:'fruit', fruit:'apple',  a:3, b:-90,  c:1, d:110},
+  {id:'L3-3', level:3, type:'fruit', fruit:'orange', a:5, b:-50,  c:0, d:150},
+  {id:'L3-4', level:3, type:'fruit', fruit:'apple',  a:4, b:-120, c:0, d:80 },
+  {id:'L3-5', level:3, type:'fruit', fruit:'pear',   a:2, b:-30,  c:1, d:45 },
+  {id:'L3-6', level:3, type:'fruit', fruit:'orange', a:7, b:-60,  c:3, d:100},
+
+];
+
+/* ================================================================
+   2b. AUFGABEN-GENERATOR (unbegrenzt) + FORMEL-ENGINE
+   ================================================================ */
+const rnd = (a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const pick = arr=>arr[rnd(0,arr.length-1)];
+const MIX = [1,1,2,2,3,4,3,5,4,5];
+let genCount = 0;
+
+function genEquation(level){
+  const fruit = pick(Object.keys(FRUITS));
+  for(let tries=0; tries<200; tries++){
+    let a,b,c,d,s;
+    if(level === 1){
+      s = rnd(3,15)*10; c = pick([1,1,2,2,3]); a = c + rnd(1,3); b = 0;
+      if(Math.random() < .25){ c = 0; a = rnd(2,4); b = rnd(1,6)*10; }
+    } else if(level === 2){
+      s = rnd(3,15)*10; c = pick([0,1,1,2,3]); a = c + rnd(1,4); b = rnd(1,15)*10;
+    } else if(level === 3){
+      s = rnd(4,16)*10; c = pick([0,0,1,2,3]); a = c + rnd(1,4); b = -rnd(2,12)*10;
+    } else {
+      s = pick([-12,-9,-8,-6,-5,-4,-3,-2,2,3,4,5,6,8,9,12]);
+      a = rnd(0,6); c = rnd(0,6); b = rnd(-20,20);
+      if(a === c) continue;
+    }
+    d = (a-c)*s + b;
+    if(level < 5 && d <= 0) continue;
+    if(level === 5 && Math.abs(d) > 60) continue;
+    return {id:'G'+(++genCount), level, type:'fruit', fruit, a, b, c, d};
+  }
+  return {id:'G'+(++genCount), level, type:'fruit', fruit, a:3, b:0, c:1, d:200};
+}
+
+/* Formeln als Baum: ['+',l,r] ['-',l,r] ['*',l,r] ['/',l,r] oder Text */
+const PREC = {'+':1,'-':1,'*':2,'/':2};
+const OPSYM = {'+':'+','-':MINUS,'*':'·','/':'÷'};
+const isNumTok = e => /^\d+$/.test(e);
+function exStr(e, po, side){
+  if(typeof e === 'string') return e;
+  const [o,l,r] = e, p = PREC[o];
+  const str = exStr(l,o,0) + (o==='*' ? ' · ' : o==='/' ? ' / ' : o==='-' ? ' '+MINUS+' ' : ' + ') + exStr(r,o,1);
+  const need = po && (p < PREC[po] || (side === 1 && p === PREC[po] && (po === '-' || po === '/')));
+  return need ? '(' + str + ')' : str;
+}
+const exArg = x => typeof x === 'string' ? x : '(' + exStr(x) + ')';
+const fxLabel = (o,x) => OPSYM[o] + exArg(x);
+const exEq = (x,y) => JSON.stringify(x) === JSON.stringify(y);
+const hasV = (e,t) => typeof e === 'string' ? e === t : hasV(e[1],t) || hasV(e[2],t);
+function varsOf(e, out = new Set()){
+  if(typeof e === 'string'){ if(!isNumTok(e)) out.add(e); }
+  else { varsOf(e[1],out); varsOf(e[2],out); }
+  return out;
+}
+function evalEx(e, v){
+  if(typeof e === 'string') return isNumTok(e) ? new Frac(+e) : v[e];
+  const [o,l,r] = e, x = evalEx(l,v), y = evalEx(r,v);
+  return o==='+' ? x.add(y) : o==='-' ? x.sub(y) : o==='*' ? x.mul(y) : x.div(y);
+}
+/** (e o x) – hebt die Gegenoperation direkt auf: (A + b) − b = A */
+function simp(o, e, x){
+  if(Array.isArray(e)){
+    const [eo,l,r] = e;
+    if(o==='-' && eo==='+'){ if(exEq(r,x)) return l; if(exEq(l,x)) return r; }
+    if(o==='+' && eo==='-' && exEq(r,x)) return l;
+    if(o==='/' && eo==='*'){ if(exEq(r,x)) return l; if(exEq(l,x)) return r; }
+    if(o==='*' && eo==='/' && exEq(r,x)) return l;
+  }
+  return [o,e,x];
+}
+/** nächster richtiger Schritt: die Gegenoperation der äußersten Verknüpfung */
+function fxStep(L, R, t){
+  const S = hasV(L,t) ? L : R;
+  if(typeof S === 'string') return null;
+  const [o,l,r] = S;
+  if(hasV(l,t)) return {o:{'+':'-','-':'+','*':'/','/':'*'}[o], x:r};
+  if(o === '+') return {o:'-', x:l};
+  if(o === '*') return {o:'/', x:l};
+  return {o:'*', x:r};              // t steht im Nenner
+}
+function fxText(st){
+  if(!st) return 'Setze jetzt die Werte ein.';
+  return (st.o==='+' ? 'Addiere ' : st.o==='-' ? 'Subtrahiere ' : st.o==='*' ? 'Multipliziere beide Seiten mit ' : 'Teile beide Seiten durch ')
+    + exArg(st.x) + (st.o==='+' || st.o==='-' ? ' auf beiden Seiten.' : '.');
+}
+const fxDone = fx => fx.L === fx.t || fx.R === fx.t;
+const fxStr = () => exStr(state.fx.L) + ' = ' + exStr(state.fx.R);
+function fxChoices(fx){
+  const st = fxStep(fx.L, fx.R, fx.t);
+  if(!st) return [];
+  return ['+','-','*','/'].map(o=>({o, x:st.x, ok:o === st.o, label:fxLabel(o, st.x)})).sort(()=>Math.random()-.5);
+}
+
+const FORMULAS = [
+  ['F', ['+','F₁','F₂'], {'F':'N','F₁':'N','F₂':'N'}],
+  ['A', ['*','l','b'], {'A':'cm²','l':'cm','b':'cm'}],
+  ['v', ['/','s','t'], {'v':'m/s','s':'m','t':'s'}],
+  ['I', ['/','U','R'], {'I':'A','U':'V','R':'Ω'}],
+  ['U', ['*','2',['+','l','b']], {'U':'cm','l':'cm','b':'cm'}],
+  ['V', ['/',['*','A','h'],'3'], {'V':'cm³','A':'cm²','h':'cm'}],
+  ['p', ['/','F','A'], {'p':'Pa','F':'N','A':'m²'}],
+  ['ρ', ['/','m','V'], {'ρ':'g/cm³','m':'g','V':'cm³'}],
+  ['P', ['*','U','I'], {'P':'W','U':'V','I':'A'}],
+  ['Q', ['*',['*','m','c'],'ΔT'], {}],
+  ['s', ['+',['*','v','t'],'s₀'], {'s':'m','v':'m/s','t':'s','s₀':'m'}],
+  ['A', ['/',['*',['+','a','b'],'h'],'2'], {'A':'cm²','a':'cm','b':'cm','h':'cm'}],
+  ['a', ['/',['-','v','v₀'],'t'], {'a':'m/s²','v':'m/s','v₀':'m/s','t':'s'}],
+  ['E', ['*',['*','m','g'],'h'], {}]
+];
+function genCuratedFormula(){
+  for(let tries=0; tries<400; tries++){
+    const [lhs, tree, units] = pick(FORMULAS);
+    const vars = [...varsOf(tree)], t = pick(vars), vals = {};
+    vars.forEach(k=>vals[k] = new Frac(rnd(2,12)));
+    const L = evalEx(tree, vals);
+    if(!L.isInt() || L.lt(1)) continue;
+    vals[lhs] = L;
+    const u = k => units[k] ? ' ' + units[k] : '';
+    const shown = [lhs, ...vars.filter(k=>k !== t)].map(k=>`${k} = ${fmtNum(vals[k])}${u(k)}`).join(', ');
+    return {id:'G'+(++genCount), level:4, type:'formula', formula:lhs + ' = ' + exStr(tree),
+            lhs, tree, target:t, values:shown, answer:vals[t].n, unit:(units[t] || ''), vals};
+  }
+  return {id:'G'+(++genCount), level:4, type:'formula', formula:'A = l · b', lhs:'A', tree:['*','l','b'],
+          target:'b', values:'A = 96 cm², l = 12 cm', answer:8, unit:'cm', vals:{A:new Frac(96), l:new Frac(12), b:new Frac(8)}};
+}
+/* Zufällig zusammengebaute Formeln: jede Kombination aus Aufbau, Variablen und Zielgröße ist neu */
+const VAR_POOL = ['a','b','c','d','e','h','k','m','n','p','q','r','s','t','u','v','w','y','z','F','G','K','L','M','N','R','T','U','V','W','Z','α','β','λ','μ','ρ','σ','φ','ω'];
+function randTree(pool, n, consts){
+  if(n === 1) return consts.length && Math.random() < .3 ? consts.pop() : pool.pop();
+  const k = rnd(1, n-1);
+  return [pick(['+','-','*','/']), randTree(pool,k,consts), randTree(pool,n-k,consts)];
+}
+/* die gesuchte Größe darf nicht rechts von „−“ stehen (a − t) */
+const badPath = (e,t) => typeof e !== 'string' && ((e[0] === '-' && hasV(e[2],t)) || badPath(e[1],t) || badPath(e[2],t));
+const allNZ = (e,v) => typeof e === 'string' || (!evalEx(e,v).isZero() && allNZ(e[1],v) && allNZ(e[2],v));
+function genRandomFormula(){
+  for(let tries=0; tries<300; tries++){
+    const pool = VAR_POOL.slice().sort(()=>Math.random()-.5);
+    const lhs = pool.pop(), tree = randTree(pool, pick([2,3,3,3,4,4]), [pick(['2','3','4','5','10'])]);
+    const vars = [...varsOf(tree)];
+    if(vars.length < 2) continue;
+    const t = pick(vars);
+    if(badPath(tree, t)) continue;
+    const vals = {}; vars.forEach(k=>vals[k] = new Frac(rnd(2,12)));
+    try{ if(!allNZ(tree, vals)) continue; vals[lhs] = evalEx(tree, vals); }catch(e){ continue; }
+    return {id:'G'+(++genCount), level:4, type:'formula', formula:lhs + ' = ' + exStr(tree),
+            lhs, tree, target:t, values:'', answer:vals[t].n, unit:'', vals};
+  }
+  return genCuratedFormula();
+}
+const recentF = [];
+function genFormula(){
+  for(let i=0; i<25; i++){
+    const g = Math.random() < .7 ? genRandomFormula() : genCuratedFormula();
+    const key = g.formula;
+    if(recentF.includes(key)) continue;
+    recentF.push(key); if(recentF.length > 30) recentF.shift();
+    return g;
+  }
+  return genRandomFormula();
+}
+const genProblem = level => level === 4 ? genFormula() : genEquation(level);
+function makeDeck(level, n = 10){
+  state.endless = level || 0;
+  const sel = document.getElementById('lvlSel'); if(sel) sel.value = String(state.endless);
+  return Array.from({length:n}, (_, i)=>genProblem(state.endless || MIX[i % MIX.length]));
+}
+
+/* ================================================================
+   3. EQUATION MODEL  (a·x + b = c·x + d)
+   ================================================================ */
+class EquationModel{
+  constructor(a,b,c,d,opts={}){
+    this.a = Frac.of(a); this.b = Frac.of(b);
+    this.c = Frac.of(c); this.d = Frac.of(d);
+    this.varName = opts.varName || 'x';
+    this.fruit   = opts.fruit   || 'apple';
+  }
+  clone(){
+    return new EquationModel(this.a, this.b, this.c, this.d,
+      {varName:this.varName, fruit:this.fruit});
+  }
+  /** x steht allein auf der linken Seite: 1·x + 0 = 0·x + d */
+  /** x steht allein – links (x = d) oder rechts (b = x) */
+  get isSolved(){
+    return (isOne(this.a) && this.b.isZero() && this.c.isZero()) ||
+           (isOne(this.c) && this.d.isZero() && this.a.isZero());
+  }
+  get solution(){ return isOne(this.a) ? this.d : this.b; }
+  eqStr(){ return sideStr(this.a,this.b,this.varName) + ' = ' + sideStr(this.c,this.d,this.varName); }
+
+  /* ---------- Operationen (liefern immer {ok, model, reason, label}) ---------- */
+  /** n·x auf beiden Seiten abziehen – n beliebig, x muss nicht auf jeder Seite liegen */
+  subX(n){
+    n = Frac.of(n);
+    if(n.isZero()) return {ok:false, reason:'0 Objekte abzuziehen ändert nichts.'};
+    const f = FRUITS[this.fruit], t = (isOne(n) ? '' : fmtNum(n)) + this.varName;
+    const m = this.clone();
+    m.a = m.a.sub(n); m.c = m.c.sub(n);
+    return {ok:true, model:m, sym:MINUS + t, fx:'cut', xn:n.val(), label:`− ${fmtNum(n)} ${f.emoji}`,
+            note:`Wir haben auf beiden Seiten ${t} abgezogen. Die Waage bleibt im Gleichgewicht.`};
+  }
+  addX(n){
+    n = Frac.of(n);
+    if(n.isZero()) return {ok:false, reason:'0 Objekte hinzuzufügen ändert nichts.'};
+    const f = FRUITS[this.fruit], t = (isOne(n) ? '' : fmtNum(n)) + this.varName;
+    const m = this.clone();
+    m.a = m.a.add(n); m.c = m.c.add(n);
+    return {ok:true, model:m, sym:'+' + t, fx:'grow', xn:n.val(), label:`+ ${fmtNum(n)} ${f.emoji}`,
+            note:`Wir haben auf beiden Seiten ${t} hinzugefügt.`};
+  }
+  removeFruit(){ return this.subX(1); }
+  addFruit(){ return this.addX(1); }
+  subConst(n){
+    n = Frac.of(n);
+    const m = this.clone();
+    m.b = m.b.sub(n); m.d = m.d.sub(n);
+    return {ok:true, model:m, sym:MINUS + fmtNum(n), label:`− ${fmtNum(n)} g`,
+            note:`Wir haben auf beiden Seiten ${fmtNum(n)} g abgezogen.`};
+  }
+  addConst(n){
+    n = Frac.of(n);
+    const m = this.clone();
+    m.b = m.b.add(n); m.d = m.d.add(n);
+    return {ok:true, model:m, sym:'+' + fmtNum(n), label:`+ ${fmtNum(n)} g`,
+            note:`Wir haben auf beiden Seiten ${fmtNum(n)} g addiert.`};
+  }
+  mul(n){
+    n = Frac.of(n);
+    if(n.isZero()) return {ok:false, reason:'Mit 0 zu multiplizieren hilft nicht weiter.'};
+    const m = this.clone();
+    m.a = m.a.mul(n); m.b = m.b.mul(n); m.c = m.c.mul(n); m.d = m.d.mul(n);
+    return {ok:true, model:m, sym:'×' + fmtNum(n), label:`× ${fmtNum(n)}`,
+            note:`Wir haben beide Seiten mit ${fmtNum(n)} multipliziert.`};
+  }
+  div(n){
+    n = Frac.of(n);
+    if(n.isZero()) return {ok:false, reason:'Durch 0 kann man nicht teilen.'};
+    const m = this.clone();
+    m.a = this.a.div(n); m.b = this.b.div(n);
+    m.c = this.c.div(n); m.d = this.d.div(n);
+    return {ok:true, model:m, sym:'÷' + fmtNum(n), label:`÷ ${fmtNum(n)}`,
+            note:`Wir haben beide Seiten durch ${fmtNum(n)} geteilt.`};
+  }
+  swap(){
+    const m = this.clone();
+    m.a = this.c; m.b = this.d; m.c = this.a; m.d = this.b;
+    return {ok:true, model:m, sym:'⇄', label:'Seiten getauscht',
+            note:'Wir haben die beiden Seiten vertauscht – das Gleichgewicht bleibt gleich.'};
+  }
+}
+
+/* ================================================================
+   4. SOUND (Web Audio, keine Dateien)
+   ================================================================ */
+const Sound = {
+  ctx:null, muted:false,
+  ensure(){
+    if(!this.ctx){
+      try{ this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ this.ctx = null; }
+    }
+    return this.ctx;
+  },
+  tone(freq, dur=0.12, type='sine', vol=0.07, delay=0){
+    if(this.muted) return;
+    const ctx = this.ensure(); if(!ctx) return;
+    const t0 = ctx.currentTime + delay;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(vol, t0+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t0); o.stop(t0+dur+0.03);
+  },
+  pop(){ this.tone(540,0.07,'triangle',0.05,0); },
+  good(){ this.tone(680,0.10,'sine',0.07,0); this.tone(920,0.16,'sine',0.07,0.09); },
+  bad(){ this.tone(190,0.16,'sawtooth',0.05,0); this.tone(140,0.22,'sawtooth',0.045,0.11); },
+  win(){ [523,659,784,1047].forEach((f,i)=>this.tone(f,0.22,'sine',0.07,i*0.11)); }
+};
+
+/* ================================================================
+   5. PERSISTENCE
+   ================================================================ */
+const Store = {
+  KEY:'waagenwerkstatt_v3',
+  data:{ stars:0, solved:0, noHelp:0, errors:0, invalid:0, bestStreak:0, mute:false },
+  available:true,
+  load(){
+    try{
+      const raw = localStorage.getItem(this.KEY);
+      if(raw) Object.assign(this.data, JSON.parse(raw));
+    }catch(e){ this.available = false; }
+    return this.data;
+  },
+  save(){
+    try{ localStorage.setItem(this.KEY, JSON.stringify(this.data)); }
+    catch(e){ this.available = false; }
+  },
+  reset(){
+    this.data = { stars:0, solved:0, noHelp:0, errors:0, invalid:0, bestStreak:0, mute:false };
+    this.save();
+  }
+};
+
+/* ================================================================
+   6. ANIMATION CONTROLLER
+   ================================================================ */
+const Anim = {
+  enabled:true,
+  reduced: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  get active(){ return this.enabled && !this.reduced; },
+  timers:[],
+  clear(){
+    this.timers.forEach(t=>clearTimeout(t));
+    this.timers = [];
+  },
+  later(fn, ms){
+    const t = setTimeout(fn, ms);
+    this.timers.push(t);
+    return t;
+  },
+  wobble(){
+    if(!this.active) return;
+    const g = $('#beamGroup');
+    g.style.transform = 'rotate(-2.4deg)';
+    this.later(()=>{ g.style.transform = 'rotate(2.0deg)'; }, 160);
+    this.later(()=>{ g.style.transform = 'rotate(0deg)'; }, 340);
+  },
+  shake(el){
+    if(!this.active || !el) return;
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = 'shakeX .4s ease';
+    this.later(()=>{ el.style.animation = ''; }, 420);
+  },
+  flashPans(){
+    if(!this.active) return;
+    ['#hangerL','#hangerR'].forEach(s=>{
+      const el = $(s); if(!el) return;
+      el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+      this.later(()=>el.classList.remove('flash'), 500);
+    });
+  },
+  bumpEquation(){
+    if(!this.active) return;
+    const eq = $('#equation');
+    eq.classList.remove('bump'); void eq.offsetWidth; eq.classList.add('bump');
+    this.later(()=>eq.classList.remove('bump'), 400);
+  },
+  confetti(){
+    if(!this.active) return;
+    const box = document.createElement('div');
+    box.className = 'confetti';
+    const colors = ['#ffc857','#3fbf7f','#5cc6d6','#e05b47','#ffffff','#f7a94b'];
+    for(let i=0;i<46;i++){
+      const p = document.createElement('i');
+      p.style.left = (Math.random()*100) + '%';
+      p.style.background = colors[i % colors.length];
+      p.style.animationDelay = (Math.random()*0.3) + 's';
+      p.style.animationDuration = (0.9 + Math.random()*0.8) + 's';
+      p.style.width = (7 + Math.random()*8) + 'px';
+      p.style.height = (10 + Math.random()*10) + 'px';
+      box.appendChild(p);
+    }
+    document.body.appendChild(box);
+    setTimeout(()=>box.remove(), 2400);
+  }
+};
+/* Schüttel-Keyframes (dynamisch ergänzt) */
+const styleShake = document.createElement('style');
+styleShake.textContent = '@keyframes shakeX{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}';
+document.head.appendChild(styleShake);
+
+/* ---- Goodies: abgezogene Früchte werden zerschnitten, neue fallen in die Schale ---- */
+const JUICE = {apple:'#d9343a', pear:'#b9d34a', orange:'#ff9a1f', box:'#b98a4e'};
+Sound.slice = function(){ this.tone(1100,0.07,'sawtooth',0.035,0); this.tone(520,0.14,'triangle',0.05,0.06); };
+Anim.sliceFruits = function(fruit, counts){
+  if(!this.active || !document.body.animate) return;
+  ['L','R'].forEach((side, si)=>{
+    $$('#items' + side + ' .fruit').slice(0, counts[si]).forEach((el, k)=>{
+      const r = el.getBoundingClientRect(), fs = parseFloat(getComputedStyle(el).fontSize) || 32;
+      this.later(()=>this.sliceOne(r.left + r.width/2, r.top + r.height/2, fs, el.textContent, JUICE[fruit] || '#d9343a'), k*150);
+    });
+  });
+};
+Anim.sliceOne = function(cx, cy, fs, emoji, col){
+  const add = (el, keys, opts, life)=>{ document.body.appendChild(el); el.animate(keys, opts); setTimeout(()=>el.remove(), life); };
+  const half = (clip, dx, rot)=>{
+    const h = document.createElement('span'); h.className = 'fx-half'; h.textContent = emoji;
+    h.style.cssText = `left:${cx-fs/2}px;top:${cy-fs/2}px;font-size:${fs}px;clip-path:${clip}`;
+    add(h, [{transform:'translate(0,0) rotate(0)',opacity:1},{transform:`translate(${dx}px,${fs*1.7}px) rotate(${rot}deg)`,opacity:0}],
+        {duration:720, delay:140, easing:'cubic-bezier(.3,.1,.6,1)', fill:'forwards'}, 950);
+  };
+  half('inset(0 50% 0 0)', -fs*.9, -45);
+  half('inset(0 0 0 50%)',  fs*.9,  45);
+  const sl = document.createElement('span'); sl.className = 'fx-slash';
+  sl.style.cssText = `left:${cx-fs*.8}px;top:${cy}px;width:${fs*1.6}px;transform:rotate(-55deg)`;
+  add(sl, [{opacity:0,clipPath:'inset(0 100% 0 0)'},{opacity:1,clipPath:'inset(0 0 0 0)',offset:.45},{opacity:0}], {duration:280}, 320);
+  for(let i = 0; i < 9; i++){
+    const d = document.createElement('span'), sz = 4 + Math.random()*6, a = Math.random()*Math.PI*2, dist = fs*(.5 + Math.random()*.9);
+    d.className = 'fx-drop'; d.style.cssText = `left:${cx}px;top:${cy}px;width:${sz}px;height:${sz}px;background:${col}`;
+    add(d, [{transform:'translate(0,0)',opacity:1},{transform:`translate(${Math.cos(a)*dist}px,${Math.sin(a)*dist + fs*.7}px)`,opacity:0}],
+        {duration:520 + Math.random()*300, delay:150, easing:'ease-out', fill:'forwards'}, 1100);
+  }
+  Sound.slice();
+};
+Anim.growFruits = function(n){
+  if(!this.active) return;
+  ['#itemsL','#itemsR'].forEach(sel=>$$(sel + ' .fruit').slice(-n).forEach(el=>el.classList.add('drop-in')));
+};
+
+/* ================================================================
+   7. GAME STATE
+   ================================================================ */
+const state = {
+  deck: PROBLEMS.slice(),
+  index: 0,
+  problem: null,
+  model: null,
+  history: [],
+  undoStack: [],
+  pending: null,          // {type, buffer}
+  hintStage: 0,
+  errorsThisProblem: 0,
+  usedHintThisProblem: false,
+  confidentStreak: 0,
+  answeredCorrect: false,
+  formulaChosen: false,
+  fx: null,
+  fxChoices: [],
+  endless: 0,
+  startTime: 0,
+  hintsEnabled: true,
+  sessionStars: 0,
+  streak: 0
+};
+
+/* ================================================================
+   8. NEXT-BEST-STEP SOLVER (für Hinweise)
+   ================================================================ */
+function nextStep(model){
+  if(!model || model.isSolved) return null;
+  const {a,b,c,d} = model;
+
+  /* 1. x auf beiden Seiten -> das kleinere x-Vielfache auf einmal abziehen */
+  if(!a.isZero() && !c.isZero()){
+    const m = a.lt(c) ? a : c;
+    return m.lt(0) ? {type:'addX', n:m.neg()} : {type:'subX', n:m};
+  }
+  if(a.isZero() && c.isZero()) return null;   // entartet
+
+  /* 2. Zahl auf der Seite mit x entfernen (x darf links oder rechts stehen) */
+  const co = a.isZero() ? c : a, k0 = a.isZero() ? d : b;
+  if(!k0.isZero()) return {type:'const', n:k0};
+
+  /* 3. Durch den Koeffizienten teilen */
+  if(!isOne(co)) return {type:'div', n:co};
+
+  return null;
+}
+
+function describeStep(step, model){
+  if(!step) return 'Die Gleichung ist bereits gelöst – x steht allein.';
+  const f = FRUITS[model.fruit];
+  switch(step.type){
+    case 'removeFruit':
+      return `Entferne 1 ${f.name} auf beiden Seiten.`;
+    case 'addFruit':
+      return `Füge 1 ${f.name} auf beiden Seiten hinzu.`;
+    case 'subX': case 'addX': {
+      const t = (isOne(step.n) ? '' : fmtNum(step.n)) + model.varName;
+      return (step.type === 'subX' ? 'Subtrahiere ' : 'Addiere ') + t + ' auf beiden Seiten.';
+    }
+    case 'swap':
+      return 'Tausche die Seiten, damit die Variable links steht.';
+    case 'const': {
+      const n = step.n;
+      if(n.gt(0)) return `Subtrahiere ${fmtNum(n)} g auf beiden Seiten.`;
+      return `Addiere ${fmtNum(n.neg())} g auf beiden Seiten.`;
+    }
+    case 'div': return `Teile beide Seiten durch ${fmtNum(step.n)}.`;
+    case 'mul': return `Multipliziere beide Seiten mit ${fmtNum(step.n)}.`;
+    default: return '';
+  }
+}
+
+/* ================================================================
+   9. OPERATION COMPUTATION
+   ================================================================ */
+function computeOp(model, pend){
+  if(!model || !pend) return {ok:false, reason:'Keine Operation gewählt.'};
+  switch(pend.type){
+    case 'removeFruit': return model.removeFruit();
+    case 'addFruit':    return model.addFruit();
+    case 'swap':        return model.swap();
+    case 'sub': case 'add': case 'mul': case 'div': {
+      const t = parseTerm(pend.buffer);
+      if(t === null) return {ok:false, reason:'Gib zuerst eine Zahl oder einen x-Term (z. B. 2x) ein.'};
+      if(t.x){
+        if(pend.type === 'mul' || pend.type === 'div') return {ok:false, reason:'Multiplizieren und Dividieren geht nur mit Zahlen, nicht mit x.'};
+        return pend.type === 'sub' ? model.subX(t.n) : model.addX(t.n);
+      }
+      if(pend.type === 'sub') return model.subConst(t.n);
+      if(pend.type === 'add') return model.addConst(t.n);
+      if(pend.type === 'mul') return model.mul(t.n);
+      return model.div(t.n);
+    }
+    default: return {ok:false, reason:'Unbekannte Operation.'};
+  }
+}
+
+/** Eingabe wie „50“, „2x“ oder „x“ -> {n, x} */
+function parseTerm(buf){
+  buf = String(buf || '');
+  const hasX = /x$/i.test(buf), numStr = buf.replace(/x$/i, '');
+  if(numStr === '') return hasX ? {n:1, x:true} : null;
+  const n = parseBuffer(numStr);
+  return n === null ? null : {n, x:hasX};
+}
+function parseBuffer(buf){
+  if(!buf) return null;
+  const cleaned = String(buf).replace(',', '.');
+  const v = Number(cleaned);
+  if(!Number.isFinite(v)) return null;
+  if(Math.abs(v) > 9999) return null;
+  return v;
+}
+
+/* ================================================================
+   10. RENDERER
+   ================================================================ */
+const Renderer = {
+  all(){
+    this.header();
+    const p = state.problem;
+    if(!p) return;
+    if(p.type === 'formula'){ this.formula(); }
+    else { this.scale(); }
+    this.equation();
+    this.history();
+    this.hint();
+    this.answerZone();
+    this.pending();
+    this.highlights();
+  },
+
+  header(){
+    $('#hudStars').textContent = Store.data.stars;
+    $('#hudStreak').textContent = state.streak;
+    $('#hudCount').textContent = state.index + 1;
+    $('#hudTotal').textContent = state.deck.length;
+    const pct = Math.round(((state.index % 10) / 10) * 100);
+    $('#bar').style.width = pct + '%';
+    $('#statSolved').textContent = Store.data.solved;
+    $('#statNoHelp').textContent = Store.data.noHelp;
+    $('#statErrors').textContent = Store.data.errors;
+    $('#statBest').textContent = Store.data.bestStreak;
+  },
+
+  scale(){
+    const p = state.problem, m = state.model;
+    $('#scaleStage').classList.remove('hidden');
+    $('#formulaStage').classList.add('hidden');
+
+    const f = FRUITS[m.fruit];
+    $('#levelTag').textContent = p.level === 5 ? 'Stufe 5 · Profi' : 'Stufe ' + p.level + ' · Waage';
+    $('#headline').textContent = `Wie schwer ist ${article(f)}?`;
+    $('#story').textContent = 'Die Waage ist im Gleichgewicht. Was du auf einer Seite tust, musst du auch auf der anderen tun.';
+
+    $('#itemsL').innerHTML = this.panHTML(m.a, m.b, m.fruit, 'L');
+    $('#itemsR').innerHTML = this.panHTML(m.c, m.d, m.fruit, 'R');
+
+    $('#lblRemoveFruit').textContent = f.emoji + ' entfernen';
+    $('#lblAddFruit').textContent    = f.emoji + ' hinzufügen';
+  },
+
+  panHTML(count, cv, fruit, side){
+    let out = '';
+    const plainCount = count.isInt() && count.n >= 0 && count.n <= 12;
+    const n = plainCount ? count.n : 0;
+    if(!plainCount && !count.isZero()){
+      const cneg = count.lt(0), cabs = cneg ? count.neg() : count;
+      out += `<span class="weight fchip${cneg?' debt':''}" aria-label="${cneg?'minus ':''}${fmtNum(cabs)} ${FRUITS[fruit].name}">${cneg?MINUS:''}${fmtNum(cabs)} ${FRUITS[fruit].emoji}</span>`;
+    }
+    for(let i=0;i<n;i++){
+      out += `<button class="fruit" data-side="${side}" aria-label="${FRUITS[fruit].name} – unbekannte Masse">${FRUITS[fruit].emoji}</button>`;
+    }
+    if(!cv.isZero()){
+      const neg = cv.lt(0);
+      const abs = neg ? cv.neg() : cv;
+      const parts = abs.isInt() ? splitWeight(abs.n) : null;
+      if(!parts) out += `<span class="weight fchip${neg?' debt':''}">${neg?MINUS:''}${fmtNum(abs)} g</span>`;
+      (parts || []).forEach(v=>{
+        const val = neg ? -v : v;
+        out += `<button class="weight${neg?' debt':''}" data-side="${side}" data-value="${val}"
+                 aria-label="${neg?'Schuld-Gewicht ':''}${v} Gramm">${neg?MINUS:''}${v} g</button>`;
+      });
+    }
+    if(!out) out = '<span class="empty-pan">leer</span>';
+    return out;
+  },
+
+  formula(){
+    const p = state.problem;
+    $('#scaleStage').classList.add('hidden');
+    $('#formulaStage').classList.remove('hidden');
+
+    $('#levelTag').textContent = 'Stufe 4 · Formeln';
+    $('#headline').textContent = `Stelle nach ${p.target} um`;
+    $('#story').textContent = 'Wähle Schritt für Schritt die Rechnung, die du auf beiden Seiten ausführst.';
+
+    $('#formulaBig').textContent = fxStr();
+    $('#formulaTarget').innerHTML = 'Stelle nach <b>' + escapeHtml(p.target) + '</b> um';
+
+    const box = $('#formulaOptions');
+    box.innerHTML = '';
+    if(!state.formulaChosen) state.fxChoices.forEach((c, k)=>{
+      const b = document.createElement('button');
+      b.className = 'option'; b.type = 'button';
+      b.textContent = c.label;
+      b.setAttribute('aria-label', 'Rechne ' + c.label + ' auf beiden Seiten');
+      b.addEventListener('click', ()=>Controller.chooseStep(k));
+      box.appendChild(b);
+    });
+
+    $('#verifyBox').classList.add('hidden');
+
+    $('#lblRemoveFruit').textContent = '🍎 entfernen';
+    $('#lblAddFruit').textContent = '🍎 hinzufügen';
+    $('#opbar').classList.add('hidden');
+  },
+
+  equation(){
+    const p = state.problem;
+    if(!p) return;
+    const eq = $('#equation');
+    if(p.type === 'formula'){
+      eq.textContent = fxStr();
+    } else {
+      eq.innerHTML = mathHtml(state.model.eqStr());
+    }
+  },
+
+  /** Rechenweg: links die Gleichung, rechts neben dem Strich die Rechnung auf beiden Seiten */
+  history(){
+    const box = $('#historyList');
+    const H = state.history, p = state.problem;
+    if(!p || !H.length){ box.innerHTML = ''; return; }
+    const isF = p.type === 'formula';
+    let pv = '';
+    if(state.pending && state.model){
+      const r = computeOp(state.model, state.pending);
+      pv = r.ok ? (r.sym || '') : '…';
+    }
+    const solved = isF ? state.formulaChosen : (state.model && state.model.isSolved);
+    box.innerHTML = H.map((h, i)=>{
+      const last = i === H.length - 1, nxt = H[i+1];
+      const op = nxt ? (nxt.sym || nxt.label) : (last ? pv : '');
+      const eqH = isF ? escapeHtml(h.eq) : mathHtml(h.eq);
+      return `<div class="ceq${last?' cur':''}${last && solved?' fin':''}">${eqH}</div>` +
+             `<div class="cop${nxt?'':' pv'}">${escapeHtml(op)}</div>`;
+    }).join('');
+    box.scrollTop = box.scrollHeight;
+  },
+
+  hint(){
+    const stage = state.hintStage;
+    const el = $('#hintText');
+    const p = state.problem;
+    if(!p){ el.textContent=''; return; }
+
+    if(p.type === 'formula'){
+      if(stage === 0) el.textContent = 'Überlege: Welche Rechenart löst die Verbindung zur gesuchten Größe?';
+      else if(stage === 1) el.textContent = 'Die gesuchte Größe muss allein auf einer Seite stehen.';
+      else if(stage === 2) el.textContent = 'Tipp: ' + fxText(fxStep(state.fx.L, state.fx.R, state.fx.t));
+      else { const st = fxStep(state.fx.L, state.fx.R, state.fx.t); el.textContent = st ? 'Nächster Schritt: ' + fxLabel(st.o, st.x) + ' auf beiden Seiten' : 'Setze jetzt die Werte ein.'; }
+      return;
+    }
+
+    if(stage === 0){
+      el.textContent = 'Ziel: Am Ende steht die Variable (das Obst) allein auf einer Seite – z. B. x = 100.';
+    } else if(stage === 1){
+      const st = nextStep(state.model);
+      el.textContent = st
+        ? 'Schau auf die markierten Objekte: ' + describeStep(st, state.model)
+        : 'Die Gleichung ist gelöst.';
+    } else if(stage === 2){
+      const st = nextStep(state.model);
+      el.textContent = st ? describeStep(st, state.model) : 'x steht bereits allein.';
+    } else {
+      const st = nextStep(state.model);
+      el.textContent = st
+        ? 'Nächster Schritt: ' + describeStep(st, state.model) + '  (Tippe auf „Anwenden“, um ihn auszuführen.)'
+        : 'x steht bereits allein – trage den Wert ein.';
+    }
+  },
+
+  answerZone(){
+    const p = state.problem;
+    const inp = $('#answerInput'), btn = $('#btnCheck'),
+          lbl = $('#answerLabel'), unit = $('#answerUnit');
+    if(!p) return;
+
+    /* Kein Abtippen mehr: ist x (bzw. die Zielgröße) isoliert, genügt „Weiter“ */
+    const f = p.type === 'formula';
+    const ready = f ? state.formulaChosen : state.model.isSolved;
+    inp.style.display = 'none'; unit.style.display = 'none';
+    inp.disabled = true;
+    if(!ready) lbl.textContent = f ? 'Stelle nach ' + p.target + ' um' : 'Isoliere x';
+    else if(f) lbl.textContent = '✓ ' + fxStr();
+    else lbl.textContent = '✓ x = ' + fmtNum(state.model.solution).replace('-', MINUS) + (p.level === 5 ? '' : ' g');
+    btn.disabled = !ready;
+    btn.textContent = 'Weiter →';
+  },
+
+  pending(){
+    const box = $('#preview');
+    if(!state.pending){
+      box.classList.add('hidden');
+      $('#numDisplay').textContent = '—';
+      $$('#opchips .chip').forEach(c=>c.classList.remove('active'));
+      this.history();
+      return;
+    }
+    box.classList.remove('hidden');
+
+    const p = state.pending;
+    $$('#opchips .chip').forEach(c=>{
+      c.classList.toggle('active', c.dataset.numop === p.type);
+    });
+
+    let text = '';
+    if(p.type === 'removeFruit')      text = `1 ${FRUITS[state.model.fruit].name} auf beiden Seiten entfernen`;
+    else if(p.type === 'addFruit')    text = `1 ${FRUITS[state.model.fruit].name} auf beiden Seiten hinzufügen`;
+    else if(p.type === 'swap')        text = 'Seiten tauschen';
+    else {
+      const t = parseTerm(p.buffer);
+      const sym = {sub:'−', add:'+', mul:'×', div:'÷'}[p.type];
+      text = t === null ? `${sym} …  (Zahl eingeben)`
+           : t.x ? `${sym} ${t.n === 1 ? '' : fmtNum(t.n)}x auf beiden Seiten`
+                 : `${sym} ${fmtNum(t.n)} auf beiden Seiten`;
+    }
+
+    const res = computeOp(state.model, p);
+    let preview = '';
+    if(res.ok) preview = `<b>${escapeHtml(res.model.eqStr())}</b>`;
+    else preview = `<span style="color:#ffc3bb">${escapeHtml(res.reason||'')}</span>`;
+
+    $('#previewText').innerHTML = escapeHtml(text) + ' &nbsp;→&nbsp; ' + preview;
+    $('#btnConfirm').disabled = !res.ok;
+    $('#numDisplay').textContent = (p.type==='sub'||p.type==='add'||p.type==='mul'||p.type==='div')
+      ? (p.buffer || '0') : '—';
+    this.history();
+  },
+
+  highlights(){
+    $$('.fruit,.weight').forEach(el=>el.classList.remove('hl'));
+    if(state.hintStage < 1) return;
+    if(!state.problem || state.problem.type === 'formula') return;
+    const st = nextStep(state.model);
+    if(!st) return;
+    if(['removeFruit','addFruit','subX','addX'].includes(st.type)){
+      $$('.fruit').forEach(el=>el.classList.add('hl'));
+    } else if(st.type === 'const'){
+      $$('.weight').forEach(el=>el.classList.add('hl'));
+    } else {
+      $$('.fruit,.weight').forEach(el=>el.classList.add('hl'));
+    }
+  }
+};
+
+/* Hilfsfunktionen für die Darstellung */
+function article(f){ return f.name === 'Orange' ? 'eine Orange' : 'ein ' + f.name; }
+function mathHtml(str){ return escapeHtml(str).replace(/x/g, '<i>x</i>'); }
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function splitWeight(total){
+  const denoms = [500,200,100,50,20,10,5,1];
+  const out = [];
+  let rem = Math.abs(Math.round(total));
+  for(const d of denoms){
+    while(rem >= d && out.length < 5){ out.push(d); rem -= d; }
+  }
+  if(rem > 0){
+    if(out.length >= 5) out[out.length-1] += rem;
+    else out.push(rem);
+  }
+  if(out.length === 0) out.push(0);
+  return out;
+}
+
+/* ================================================================
+   11. CONTROLLER
+   ================================================================ */
+const Controller = {
+
+  /* ---------- Session ---------- */
+  startSession(deck, startIndex = 0){
+    state.deck = deck.length ? deck : PROBLEMS.slice();
+    state.index = Math.min(startIndex, state.deck.length-1);
+    state.sessionStars = 0;
+    state.streak = 0;
+    this.load(state.deck[state.index]);
+    this.feedback('');
+  },
+
+  load(problem){
+    Anim.clear();
+    state.problem = problem;
+    state.pending = null;
+    state.undoStack = [];
+    state.hintStage = 0;
+    state.errorsThisProblem = 0;
+    state.usedHintThisProblem = false;
+    state.answeredCorrect = false;
+    state.formulaChosen = false;
+    state.startTime = Date.now();
+    $('#answerInput').value = '';
+    $('#inspectNote').textContent = '';
+    $('#opbar').classList.remove('hidden');
+
+    if(problem.type === 'formula'){
+      state.model = null;
+      state.fx = {L:problem.lhs, R:problem.tree, t:problem.target};
+      state.fxChoices = fxChoices(state.fx);
+      state.history = [{label:'Start', eq:fxStr()}];
+    } else {
+      state.model = new EquationModel(problem.a, problem.b, problem.c, problem.d,
+                                     {fruit:problem.fruit, varName:'x'});
+      state.history = [{label:'Start', eq:state.model.eqStr()}];
+    }
+    Renderer.all();
+    this.setNote('Die Waage ist im Gleichgewicht. Löse die Aufgabe Schritt für Schritt.');
+  },
+
+  nextProblem(){
+    let idx = state.index + 1;
+
+    /* Adaptiv: nach 3 sicheren Lösungen eine Stufe überspringen */
+    if(state.confidentStreak >= 3 && idx < state.deck.length && state.problem){
+      const curLevel = state.problem.level;
+      for(let i = idx; i < state.deck.length; i++){
+        if(state.deck[i].level > curLevel){ idx = i; break; }
+      }
+    }
+
+    if(idx >= state.deck.length) state.deck.push(genProblem(state.endless || MIX[idx % MIX.length]));
+    state.index = idx;
+    this.load(state.deck[idx]);
+    $('#feedback').textContent = '';
+    $('#feedback').className = 'feedback';
+    $('#bar').style.width = Math.round(((state.index % 10)/10)*100) + '%';
+    Renderer.header();
+  },
+
+  /** frische Aufgabe derselben Stufe an die Stelle der aktuellen setzen */
+  skipNew(){
+    const p = genProblem(state.endless || (state.problem ? state.problem.level : 1));
+    state.deck[state.index] = p;
+    this.load(p);
+    this.feedback('');
+    Renderer.header();
+  },
+
+  finish(){
+    $('#bar').style.width = '100%';
+    const s = Store.data.stars;
+    $('#winResult').textContent =
+      `Du hast ${s} Sterne gesammelt und ${Store.data.solved} Aufgaben gelöst. ` +
+      (s >= 120 ? 'Starke Arbeit – du beherrschst das Gleichgewicht!' :
+                  'Probiere es noch einmal und nutze die Hinweise.');
+    $('#winOverlay').classList.remove('hidden');
+    Sound.win();
+    Anim.confetti();
+  },
+
+  /* ---------- Pending operations ---------- */
+  setPending(pend){
+    if(!state.model) return;
+    if(state.answeredCorrect) return;
+    /* Rechenart-Chips (− + ÷ ×) starten mit leerer Eingabe: erst danach wird die Zahl getippt */
+    const awaitingNumber = ['sub','add','mul','div'].includes(pend.type) && !pend.buffer;
+    const res = awaitingNumber ? {ok:true} : computeOp(state.model, pend);
+    if(!res.ok){
+      this.feedback(res.reason, 'bad');
+      Anim.shake($('#board'));
+      Sound.bad();
+      return;
+    }
+    state.pending = pend;
+    Renderer.pending();
+    Anim.wobble();
+    Sound.pop();
+  },
+
+  clearPending(){
+    state.pending = null;
+    Renderer.pending();
+  },
+
+  applyPending(){
+    if(!state.pending) return;
+    const res = computeOp(state.model, state.pending);
+    if(!res.ok){
+      this.feedback(res.reason, 'bad');
+      Anim.shake($('#board'));
+      Sound.bad();
+      Store.data.invalid++;
+      Store.save();
+      return;
+    }
+
+    /* Undo-Snapshot */
+    state.undoStack.push({
+      model: state.model.clone(),
+      histLen: state.history.length,
+      hintStage: state.hintStage
+    });
+
+    if(res.fx === 'cut'){
+      const bm = state.model, cnt = f => f.isInt() && f.n > 0 ? f.n : 0, n = Math.round(res.xn);
+      Anim.sliceFruits(bm.fruit, [Math.min(n, cnt(bm.a)), Math.min(n, cnt(bm.c))]);
+    }
+    state.model = res.model;
+    state.history.push({label: res.label, sym: res.sym, eq: state.model.eqStr()});
+    state.pending = null;
+
+    Anim.flashPans();
+    Renderer.all();
+    if(res.fx === 'grow') Anim.growFruits(Math.round(res.xn));
+    Anim.bumpEquation();
+    Sound.pop();
+    this.setNote(res.note || '');
+
+    if(state.model.isSolved){
+      this.autoSolve();
+    } else {
+      this.feedback('Gleichgewicht bleibt erhalten. Weiter so!', 'good');
+    }
+  },
+
+  undo(){
+    if(state.answeredCorrect){
+      this.feedback('Schon gelöst – tippe auf „Weiter“.', 'info');
+      return;
+    }
+    if(!state.undoStack.length){
+      this.feedback('Es gibt nichts, was du rückgängig machen könntest.', 'info');
+      return;
+    }
+    const snap = state.undoStack.pop();
+    state.model = snap.model;
+    state.history = state.history.slice(0, snap.histLen);
+    state.hintStage = snap.hintStage;
+    state.pending = null;
+    state.answeredCorrect = false;
+    Renderer.all();
+    this.setNote('Letzter Schritt rückgängig gemacht.');
+    Sound.pop();
+  },
+
+  resetProblem(){
+    if(!state.problem) return;
+    this.load(state.problem);
+    this.feedback('Aufgabe neu gestartet.', 'info');
+  },
+
+  /* ---------- Input events ---------- */
+  /** Tippen auf ein Obst wählt „− x“; jedes weitere Tippen erhöht auf −2x, −3x … */
+  onFruitClick(){
+    if(!state.model || state.answeredCorrect) return;
+    this.xTerm('sub');
+  },
+  xTerm(type){
+    const p = state.pending;
+    if(p && p.type === type && /x$/i.test(p.buffer)){
+      const t = parseTerm(p.buffer);
+      p.buffer = Math.min(99, (t ? t.n : 0) + 1) + 'x';
+      Renderer.pending(); Sound.pop();
+      return;
+    }
+    this.setPending({type, buffer:'x'});
+  },
+
+  onWeightClick(value){
+    if(!state.model) return;
+    if(state.answeredCorrect) return;
+    if(value > 0) this.setPending({type:'sub', buffer:String(value)});
+    else this.setPending({type:'add', buffer:String(Math.abs(value))});
+  },
+
+  onOpButton(op){
+    if(op === 'undo'){ this.undo(); return; }
+    if(op === 'reset'){ this.resetProblem(); return; }
+    if(!state.model) return;
+    if(state.answeredCorrect) return;
+    if(op === 'swap'){ this.setPending({type:'swap'}); return; }
+    if(op === 'removeFruit'){ this.onFruitClick(); return; }
+    if(op === 'addFruit'){
+      this.xTerm('add');
+      return;
+    }
+  },
+
+  onChip(type){
+    if(!state.model || state.answeredCorrect) return;
+    const cur = state.pending;
+    if(cur && cur.type === type){
+      state.pending = null;
+      Renderer.pending();
+      return;
+    }
+    this.setPending({type, buffer:''});
+  },
+
+  onKey(k){
+    /* Zahleneingabe: erst für anstehende Rechenoperation, sonst für die Antwort */
+    const pend = state.pending;
+    const isNumeric = pend && ['sub','add','mul','div'].includes(pend.type);
+
+    if(isNumeric){
+      if(k === 'back')  pend.buffer = pend.buffer.slice(0,-1);
+      else if(k === 'clear') pend.buffer = '';
+      else if(k === 'apply'){ this.applyPending(); return; }
+      else if(k === 'x'){
+        if((pend.type === 'sub' || pend.type === 'add') && !/x$/i.test(pend.buffer)) pend.buffer += 'x';
+        else if(pend.type === 'mul' || pend.type === 'div') this.feedback('Multiplizieren und Dividieren geht nur mit Zahlen.', 'info');
+      }
+      else if(/^[0-9]$/.test(k)){
+        if(pend.buffer.length < 6 && !/x$/i.test(pend.buffer)) pend.buffer += k;
+      }
+      Renderer.pending();
+      return;
+    }
+
+    if(k === 'apply'){
+      if(state.pending) this.applyPending();
+      else this.checkAnswer();
+      return;
+    }
+
+    /* Antwortfeld */
+    const inp = $('#answerInput');
+    if(!inp.disabled){
+      if(k === 'back') inp.value = inp.value.slice(0,-1);
+      else if(k === 'clear') inp.value = '';
+      else if(k === 'neg') inp.value = inp.value.startsWith('-') ? inp.value.slice(1) : '-' + inp.value;
+      else if(k === ','){ if(!inp.value.includes(',')) inp.value += ','; }
+      else if(/^[0-9]$/.test(k)) inp.value += k;
+      return;
+    }
+
+    if(k === 'back' || k === 'clear') return;
+    this.feedback('Wähle zuerst eine Rechenart (− + ÷ ×) oder tippe auf ein Objekt.', 'info');
+  },
+
+  /* ---------- Formula level ---------- */
+  chooseStep(k){
+    const p = state.problem, c = state.fxChoices[k];
+    if(!p || p.type !== 'formula' || state.formulaChosen || !c) return;
+    if(c.ok){
+      const fx = state.fx;
+      fx.L = simp(c.o, fx.L, c.x); fx.R = simp(c.o, fx.R, c.x);
+      state.formulaChosen = fxDone(fx);
+      state.history.push({label:'Umformung', sym:c.label, eq:fxStr()});
+      state.fxChoices = state.formulaChosen ? [] : fxChoices(fx);
+      Sound.good();
+      Renderer.all();
+      Anim.bumpEquation();
+      if(state.formulaChosen) this.autoSolve();
+      else this.feedback('Richtig – beide Seiten bleiben gleich. Weiter so!', 'good');
+    } else {
+      state.errorsThisProblem++;
+      Store.data.errors++;
+      Store.data.invalid++;
+      Store.save();
+      Renderer.header();
+      this.feedback('Das hebt die Verbindung nicht auf. Welche Gegenoperation passt?', 'bad');
+      Anim.shake($('#formulaStage'));
+      Sound.bad();
+      if(state.errorsThisProblem >= 2) this.showHint(true);
+    }
+  },
+
+  /* ---------- Answer checking ---------- */
+  checkAnswer(){
+    const p = state.problem;
+    if(!p) return;
+
+    if(state.answeredCorrect){ this.nextProblem(); return; }
+
+    const raw = $('#answerInput').value.trim().replace(/[−–]/g, '-').replace(',', '.');
+    let v = Number(raw);
+    if(/^-?\d+(\.\d+)?\/\d+$/.test(raw)){ const [pq, qq] = raw.split('/'); v = Number(pq) / Number(qq); }
+
+    let target = null;
+    if(p.type === 'formula'){ if(!state.formulaChosen) return; target = p.answer; }
+    else { if(!state.model.isSolved) return; target = state.model.solution.val(); }
+
+    if(raw === '' || !Number.isFinite(v)){
+      this.feedback('Tippe zuerst eine Zahl ein.', 'info');
+      return;
+    }
+
+    if(Math.abs(v - target) < 1e-6){
+      state.answeredCorrect = true;
+      this.onCorrect();
+    } else {
+      state.errorsThisProblem++;
+      state.streak = 0;
+      state.confidentStreak = 0;
+      Store.data.errors++;
+      Store.save();
+      Renderer.header();
+      this.feedback('Noch nicht richtig. Rechne den letzten Schritt noch einmal nach.', 'bad');
+      Anim.shake($('#answerZone'));
+      Sound.bad();
+      if(state.errorsThisProblem >= 2) this.showHint(true);
+      $('#answerInput').select();
+    }
+  },
+
+  /** Steht x (oder die gesuchte Größe) allein, ist die Aufgabe gelöst – sofort werten, dann „Weiter“ */
+  autoSolve(){
+    if(state.answeredCorrect) return;
+    state.answeredCorrect = true;
+    this.onCorrect();
+  },
+
+  onCorrect(){
+    const p = state.problem;
+    const usedHints = state.usedHintThisProblem;
+    const noErrors = state.errorsThisProblem === 0;
+
+    const gain = Math.max(4, 12 - state.errorsThisProblem*2 - (usedHints ? 4 : 0));
+    Store.data.stars += gain;
+    Store.data.solved++;
+    state.streak++;
+    if(state.streak > Store.data.bestStreak) Store.data.bestStreak = state.streak;
+    if(noErrors && !usedHints){
+      Store.data.noHelp++;
+      state.confidentStreak++;
+    } else {
+      state.confidentStreak = 0;
+    }
+    Store.save();
+
+    Renderer.header();
+    Renderer.answerZone();
+    this.feedback(`Richtig! +${gain} Sterne. Tippe auf „Weiter“.`, 'good');
+    Sound.good();
+    Anim.confetti();
+    Anim.flashPans();
+    setTimeout(()=>$('#btnCheck').focus(), 80);
+  },
+
+  /* ---------- Hints ---------- */
+  showHint(auto){
+    if(!state.hintsEnabled) return;
+    if(state.answeredCorrect) return;
+    state.hintStage = Math.min(4, state.hintStage + 1);
+    if(!state.usedHintThisProblem){
+      state.usedHintThisProblem = true;
+      Store.data.stars = Math.max(0, Store.data.stars - 2);
+      Store.save();
+      Renderer.header();
+    }
+    Renderer.hint();
+    Renderer.highlights();
+
+    /* Stufe 4: Arbeitsschritt anbieten (nur auf ausdrücklichen Wunsch) */
+    if(state.hintStage >= 4 && state.problem.type !== 'formula' && state.model){
+      const st = nextStep(state.model);
+      if(st){
+        if(st.type === 'subX' && st.n.isInt()) this.setPending({type:'sub', buffer:fmtNum(st.n) + 'x'});
+        else if(st.type === 'addX' && st.n.isInt()) this.setPending({type:'add', buffer:fmtNum(st.n) + 'x'});
+        else if(st.type === 'removeFruit') this.setPending({type:'removeFruit'});
+        else if(st.type === 'swap')   this.setPending({type:'swap'});
+        else if(st.type === 'const'){
+          if(st.n.gt(0)) this.setPending({type:'sub', buffer:String(Math.abs(st.n.val()))});
+          else this.setPending({type:'add', buffer:String(Math.abs(st.n.val()))});
+        }
+        else if(st.type === 'div')    this.setPending({type:'div', buffer:String(Math.abs(st.n.val()))});
+      }
+    }
+    if(auto) this.feedback('Kleiner Tipp gefällig? Schau in die Hilfe.', 'info');
+  },
+
+  /* ---------- Misc ---------- */
+  setNote(text){
+    $('#actionNote').textContent = text || '';
+  },
+  feedback(text, kind){
+    const el = $('#feedback');
+    el.textContent = text || '';
+    el.className = 'feedback' + (kind ? ' ' + kind : '');
+  },
+  readAloud(){
+    if(!('speechSynthesis' in window)) return;
+    const p = state.problem; if(!p) return;
+    let text = $('#headline').textContent + '. ' + $('#story').textContent + '. ';
+    text += $('#equation').textContent + '. ';
+    try{
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'de-DE';
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+};
+
+/* ================================================================
+   12. TEACHER MODE
+   ================================================================ */
+const TeacherMode = {
+  timerId:null,
+  remaining:0,
+
+  open(){
+    this.fillProblems();
+    this.updatePreview();
+    $('#teacherOverlay').classList.remove('hidden');
+    setTimeout(()=>$('#tClose').focus(), 40);
+  },
+  close(){
+    $('#teacherOverlay').classList.add('hidden');
+  },
+  fillProblems(){
+    const lvl = Number($('#tLevel').value);
+    const sel = $('#tProblem');
+    sel.innerHTML = '';
+    const list = lvl === 0 ? PROBLEMS : PROBLEMS.filter(p=>p.level===lvl);
+    list.forEach((p, i)=>{
+      const o = document.createElement('option');
+      o.value = p.id;
+      o.textContent = `${p.level} · ${p.id} — ${p.type==='formula' ? p.formula : `${p.a}x + ${p.b} = ${p.c}x + ${p.d}`}`;
+      sel.appendChild(o);
+    });
+  },
+  startSelected(){
+    const id = $('#tProblem').value;
+    const prob = PROBLEMS.find(p=>p.id===id);
+    if(!prob) return;
+    state.deck = [prob];
+    state.index = 0;
+    Controller.load(prob);
+    Controller.feedback('Lehrkraft-Aufgabe geladen.', 'info');
+    Renderer.header();
+    this.close();
+  },
+  updatePreview(){
+    const a = clampInt($('#tA').value, -20, 20);
+    const b = clampInt($('#tB').value, -999, 999);
+    const c = clampInt($('#tC').value, -20, 20);
+    const d = clampInt($('#tD').value, -999, 999);
+    const el = $('#tPreview');
+    const m = new EquationModel(a,b,c,d);
+    if(a === c){
+      el.textContent = 'Ungültig: a und c sind gleich → keine eindeutige Lösung.';
+      el.classList.add('err');
+      return null;
+    }
+    const x = new Frac(d - b, a - c);
+    el.textContent = `Gleichung: ${m.eqStr()}   →   x = ${fmtNum(x)}`;
+    el.classList.remove('err');
+    return {a,b,c,d};
+  },
+  startCustom(){
+    const vals = this.updatePreview();
+    if(!vals) return;
+    const fruit = $('#tFruit').value;
+    const prob = {
+      id:'CUSTOM-' + Date.now(),
+      level: state.problem ? state.problem.level : 2,
+      type:'fruit',
+      fruit,
+      a:vals.a, b:vals.b, c:vals.c, d:vals.d
+    };
+    state.deck = [prob];
+    state.index = 0;
+    Controller.load(prob);
+    Controller.feedback('Eigene Gleichung geladen.', 'info');
+    Renderer.header();
+    this.close();
+  },
+  startTimer(){
+    const min = clampInt($('#tTimer').value, 1, 60);
+    this.remaining = min * 60;
+    this.stopTimer();
+    this.timerId = setInterval(()=>{
+      this.remaining--;
+      const m = Math.floor(this.remaining/60), s = this.remaining % 60;
+      const disp = $('#tTimerDisplay');
+      disp.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+      disp.classList.toggle('low', this.remaining <= 30);
+      if(this.remaining <= 0){
+        this.stopTimer();
+        disp.textContent = '00:00';
+        Sound.bad();
+      }
+    }, 1000);
+  },
+  stopTimer(){
+    if(this.timerId){ clearInterval(this.timerId); this.timerId = null; }
+  }
+};
+
+function clampInt(v, min, max){
+  let n = parseInt(v, 10);
+  if(!Number.isFinite(n)) n = 0;
+  return Math.max(min, Math.min(max, n));
+}
+
+/* ================================================================
+   13. EVENT WIRING
+   ================================================================ */
+function wireEvents(){
+
+  /* --- Waage: Früchte und Gewichte --- */
+  $('#scaleStage').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    if(btn.classList.contains('fruit')) Controller.onFruitClick();
+    else if(btn.classList.contains('weight')) Controller.onWeightClick(Number(btn.dataset.value));
+  });
+
+  /* --- Operationsleiste --- */
+  $('#opbar').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-op]');
+    if(!btn) return;
+    Controller.onOpButton(btn.dataset.op);
+  });
+
+  /* --- Vorschau --- */
+  $('#btnConfirm').addEventListener('click', ()=>Controller.applyPending());
+  $('#btnCancel').addEventListener('click', ()=>Controller.clearPending());
+
+  /* --- Zahlenchips --- */
+  $('#opchips').addEventListener('click', (e)=>{
+    const b = e.target.closest('button[data-numop]');
+    if(!b) return;
+    Controller.onChip(b.dataset.numop);
+  });
+
+  /* --- Ziffernblock --- */
+  $('#numpad').addEventListener('click', (e)=>{
+    const b = e.target.closest('button[data-key]');
+    if(!b) return;
+    Controller.onKey(b.dataset.key);
+  });
+
+  /* --- Antwort --- */
+  $('#btnCheck').addEventListener('click', ()=>Controller.checkAnswer());
+  $('#answerInput').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){ e.preventDefault(); Controller.checkAnswer(); }
+  });
+
+  /* --- Hilfe --- */
+  $('#btnHint').addEventListener('click', ()=>Controller.showHint(false));
+  $('#btnRead').addEventListener('click', ()=>Controller.readAloud());
+
+  /* --- Sitzung --- */
+  $('#lvlSel').addEventListener('change', e=>{
+    state.confidentStreak = 0;
+    Controller.startSession(makeDeck(Number(e.target.value)), 0);
+  });
+  $('#btnNewTask').addEventListener('click', ()=>Controller.skipNew());
+  $('#btnResetSession').addEventListener('click', ()=>{
+    state.confidentStreak = 0;
+    Controller.startSession(makeDeck(state.endless), 0);
+  });
+
+  /* --- Gewonnen-Overlay --- */
+  $('#btnAgain').addEventListener('click', ()=>{
+    $('#winOverlay').classList.add('hidden');
+    state.confidentStreak = 0;
+    Controller.startSession(makeDeck(state.endless), 0);
+  });
+  $('#btnCloseWin').addEventListener('click', ()=>{
+    $('#winOverlay').classList.add('hidden');
+  });
+
+  /* --- Ton --- */
+  $('#btnMute').addEventListener('click', ()=>{
+    Sound.muted = !Sound.muted;
+    Store.data.mute = Sound.muted;
+    Store.save();
+    $('#btnMute').textContent = Sound.muted ? '🔇' : '🔊';
+    $('#btnMute').setAttribute('aria-pressed', String(Sound.muted));
+  });
+
+  /* --- Fokus-Modus --- */
+  $('#btnFocus').addEventListener('click', ()=>{
+    document.body.classList.toggle('focus-mode');
+  });
+
+  /* --- Vollbild --- */
+  $('#btnFullscreen').addEventListener('click', ()=>{
+    const el = document.documentElement;
+    if(!document.fullscreenElement){
+      if(el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+    } else {
+      if(document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+    }
+  });
+
+  /* --- Lehrkraft-Modus --- */
+  $('#btnTeacher').addEventListener('click', ()=>TeacherMode.open());
+  $('#tClose').addEventListener('click', ()=>TeacherMode.close());
+  $('#tLevel').addEventListener('change', ()=>TeacherMode.fillProblems());
+  $('#tStartProblem').addEventListener('click', ()=>TeacherMode.startSelected());
+  $('#tStartCustom').addEventListener('click', ()=>TeacherMode.startCustom());
+  ['tA','tB','tC','tD'].forEach(id=>{
+    $('#'+id).addEventListener('input', ()=>TeacherMode.updatePreview());
+  });
+  $('#tHints').addEventListener('change', (e)=>{
+    state.hintsEnabled = e.target.checked;
+    $('#btnHint').disabled = !state.hintsEnabled;
+  });
+  $('#tSound').addEventListener('change', (e)=>{
+    Sound.muted = !e.target.checked;
+    Store.data.mute = Sound.muted;
+    Store.save();
+    $('#btnMute').textContent = Sound.muted ? '🔇' : '🔊';
+    $('#btnMute').setAttribute('aria-pressed', String(Sound.muted));
+  });
+  $('#tAnim').addEventListener('change', (e)=>{
+    Anim.enabled = e.target.checked;
+    document.body.classList.toggle('no-anim', !e.target.checked);
+  });
+  $('#tContrast').addEventListener('change', (e)=>{
+    document.body.classList.toggle('high-contrast', e.target.checked);
+  });
+  $('#tTimerStart').addEventListener('click', ()=>TeacherMode.startTimer());
+  $('#tTimerStop').addEventListener('click', ()=>TeacherMode.stopTimer());
+  $('#tResetAll').addEventListener('click', ()=>{
+    Store.reset();
+    Renderer.header();
+    state.confidentStreak = 0;
+    Controller.startSession(makeDeck(state.endless), 0);
+    Controller.feedback('Gesamter Fortschritt zurückgesetzt.', 'info');
+  });
+  $('#teacherOverlay').addEventListener('click', (e)=>{
+    if(e.target.id === 'teacherOverlay') TeacherMode.close();
+  });
+  $('#winOverlay').addEventListener('click', (e)=>{
+    if(e.target.id === 'winOverlay') $('#winOverlay').classList.add('hidden');
+  });
+
+  /* --- Globale Tastatur --- */
+  document.addEventListener('keydown', (e)=>{
+    /* Escape schließt Overlays / bricht Auswahl ab */
+    if(e.key === 'Escape'){
+      if(!$('#teacherOverlay').classList.contains('hidden')){ TeacherMode.close(); return; }
+      if(!$('#winOverlay').classList.contains('hidden')){ $('#winOverlay').classList.add('hidden'); return; }
+      if(state.pending){ Controller.clearPending(); return; }
+    }
+
+    /* Ctrl/Cmd + Z = Rückgängig */
+    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z'){
+      e.preventDefault();
+      Controller.undo();
+      return;
+    }
+
+    const tag = (e.target.tagName || '').toLowerCase();
+    const inField = tag === 'input' || tag === 'select' || tag === 'textarea';
+
+    /* Enter bestätigt eine anstehende Operation */
+    if(e.key === 'Enter' && !inField){
+      if(state.pending){ e.preventDefault(); Controller.applyPending(); }
+      else if(!$('#btnCheck').disabled){ e.preventDefault(); Controller.checkAnswer(); }
+      return;
+    }
+
+    /* Ziffern: Rechenoperation oder Antwort */
+    if(!inField){
+      if(/^[0-9]$/.test(e.key)){
+        const pend = state.pending;
+        const isNumeric = pend && ['sub','add','mul','div'].includes(pend.type);
+        if(isNumeric || !$('#answerInput').disabled){
+          e.preventDefault();
+          Controller.onKey(e.key);
+        }
+      } else if(e.key === 'Backspace'){
+        const pend = state.pending;
+        const isNumeric = pend && ['sub','add','mul','div'].includes(pend.type);
+        if(isNumeric || !$('#answerInput').disabled){
+          e.preventDefault();
+          Controller.onKey('back');
+        }
+      } else if(e.key === 'x' || e.key === 'X'){
+        const pend = state.pending;
+        if(pend && ['sub','add','mul','div'].includes(pend.type)){ e.preventDefault(); Controller.onKey('x'); }
+      } else if(e.key === '-' || e.key === '−'){
+        if(!$('#answerInput').disabled){ e.preventDefault(); Controller.onKey('neg'); }
+      } else if(e.key === ',' || e.key === '.'){
+        if(!$('#answerInput').disabled){
+          e.preventDefault();
+          $('#answerInput').value += ',';
+        }
+      }
+    }
+  });
+}
+
+/* ================================================================
+   14. SELF TESTS (laufen einmalig, Ergebnisse in der Konsole)
+   ================================================================ */
+function runSelfTests(){
+  const T = window.__wwTest;
+
+  /* Jede vordefinierte Gleichung hat genau eine Lösung */
+  PROBLEMS.filter(p=>p.type === 'fruit').forEach(p=>{
+    const m = new EquationModel(p.a,p.b,p.c,p.d,{fruit:p.fruit});
+    const sol = m.d.sub(m.b).div(m.a.sub(m.c));
+    const left  = m.a.mul(sol).add(m.b);
+    const right = m.c.mul(sol).add(m.d);
+    T('Eindeutige Lösung für ' + p.id, !m.a.eq(m.c) && left.eq(right));
+    T('Lösung positiv für ' + p.id, sol.gt(0));
+  });
+
+  /* Generatoren: Gleichungen eindeutig lösbar, Formeln korrekt umstellbar */
+  for(let lv = 1; lv <= 5; lv++) for(let k = 0; k < 40; k++){
+    const g = genEquation(lv), gm = new EquationModel(g.a,g.b,g.c,g.d,{fruit:g.fruit});
+    const gs = gm.d.sub(gm.b).div(gm.a.sub(gm.c));
+    if(!(gs.isInt() && !gm.a.eq(gm.c) && (lv === 5 || gm.d.gt(0)))) T('Gleichung Stufe ' + lv + ': ' + gm.eqStr(), false);
+  }
+  T('Gleichungs-Generator liefert gültige Aufgaben', true);
+  for(let k = 0; k < 60; k++){
+    const g = genFormula(); let fx = {L:g.lhs, R:g.tree, t:g.target}, n = 0;
+    while(!fxDone(fx) && n < 8){ const st = fxStep(fx.L, fx.R, fx.t); fx = {L:simp(st.o,fx.L,st.x), R:simp(st.o,fx.R,st.x), t:fx.t}; n++; }
+    const other = fx.L === fx.t ? fx.R : fx.L;
+    T('Formel ' + g.formula + ' nach ' + g.target, fxDone(fx) && evalEx(other, g.vals).eq(g.answer));
+  }
+
+  /* Operationen erhalten die Gleichheit */
+  const m = new EquationModel(3,0,1,200,{fruit:'apple'});
+  const r1 = m.removeFruit();
+  T('Früchte entfernen erhält Gleichheit', r1.ok && r1.model.a.eq(2) && r1.model.c.eq(0));
+  const r2 = r1.model.subConst(50);
+  T('Subtraktion beidseitig', r2.ok && r2.model.b.eq(-50) && r2.model.d.eq(150));
+  const r3 = r2.model.addConst(50);
+  T('Addition beidseitig', r3.ok && r3.model.b.isZero() && r3.model.d.eq(200));
+  const r4 = r3.model.mul(3);
+  T('Multiplikation beidseitig', r4.ok && r4.model.a.eq(6) && r4.model.d.eq(600));
+  const r5 = r4.model.div(3);
+  T('Division beidseitig', r5.ok && r5.model.a.eq(2) && r5.model.d.eq(200));
+  const r6 = r3.model.div(3);
+  T('Division mit Rest ergibt einen Bruch', r6.ok && !r6.model.d.isInt());
+  const r7 = r3.model.div(0);
+  T('Division durch 0 unmöglich', !r7.ok);
+  const r8 = r3.model.div(2);
+  T('Division ergibt x = 100', r8.ok && r8.model.isSolved && r8.model.solution.eq(100));
+  const rx = new EquationModel(2,3,3,5,{fruit:'apple'}).subX(2);
+  T('2x auf einmal abziehen: 3 = x + 5', rx.ok && rx.model.a.isZero() && rx.model.c.eq(1) && rx.model.b.eq(3) && rx.model.d.eq(5));
+  const ry = rx.model.subConst(5);
+  T('x darf rechts stehen: −2 = x', ry.ok && ry.model.isSolved && ry.model.solution.eq(-2));
+
+  /* Undo-Snapshot */
+  const snap = m.clone();
+  const changed = m.removeFruit().model;
+  T('Undo stellt exakten Zustand wieder her',
+    changed.eqStr() !== snap.eqStr() && snap.eqStr() === '3x = x + 200');
+
+  /* Frac-Exaktheit */
+  T('Frac: 1/3 + 1/6 = 1/2', new Frac(1,3).add(new Frac(1,6)).eq(new Frac(1,2)));
+  T('Frac: 6/4 kürzt zu 3/2', new Frac(6,4).eq(new Frac(3,2)));
+
+  /* LocalStorage darf nicht crashen */
+  try{
+    localStorage.setItem('__ww_test','1');
+    localStorage.removeItem('__ww_test');
+    T('localStorage verfügbar', true);
+  }catch(e){
+    T('localStorage nicht verfügbar – Spiel läuft trotzdem', true);
+  }
+
+  const failed = window.__wwLog.filter(x=>!x.ok);
+  console.info(`[Waagenwerkstatt] Selbsttests: ${window.__wwLog.length - failed.length}/${window.__wwLog.length} bestanden.`);
+}
+
+/* ================================================================
+   15. INIT
+   ================================================================ */
+function init(){
+  Store.load();
+
+  Sound.muted = !!Store.data.mute;
+  $('#btnMute').textContent = Sound.muted ? '🔇' : '🔊';
+  $('#btnMute').setAttribute('aria-pressed', String(Sound.muted));
+
+  if(Anim.reduced){
+    Anim.enabled = false;
+    document.body.classList.add('no-anim');
+  }
+
+  wireEvents();
+
+  /* Standard-Sitzung: alle Aufgaben der Reihe nach */
+  Controller.startSession(makeDeck(0), 0);
+
+  $('#btnHint').disabled = !state.hintsEnabled;
+
+  runSelfTests();
+}
+
+/* Los geht's – Skript steht am Ende des Body, DOM ist bereit. */
+init();
+</script>
+</body>
+</html>
